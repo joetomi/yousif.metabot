@@ -65,19 +65,27 @@ def create_app():
             is_developer=is_developer
         )
 
-    # Server-side inactivity timeout (1 minute)
+    # Server-side inactivity timeout (30 min for dev, 10 min for user)
     @app.before_request
     def check_session_timeout():
         from datetime import datetime, timedelta
-        session.permanent = True
+        from models import Admin
         if session.get('admin_logged_in'):
+            admin_id = session.get('admin_id')
+            admin = Admin.query.get(admin_id)
+            is_dev = admin and admin.role == 'developer'
+            
+            # Developers have permanent sessions (lasts 30 mins), clients have session-only (lasts 10 mins)
+            session.permanent = True if is_dev else False
+            timeout_minutes = 30 if is_dev else 10
+            
             last_activity_str = session.get('last_activity')
             now = datetime.utcnow()
             if last_activity_str:
                 try:
                     last_activity_time = datetime.strptime(last_activity_str, '%Y-%m-%d %H:%M:%S')
-                    # Log out if inactive for more than 1 minute
-                    if now - last_activity_time > timedelta(minutes=1):
+                    # Log out if inactive for more than target minutes
+                    if now - last_activity_time > timedelta(minutes=timeout_minutes):
                         session.clear()
                         from flask import flash
                         flash('Session expired due to inactivity. Please log in again.', 'info')

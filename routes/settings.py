@@ -167,6 +167,20 @@ def facebook_select_page():
         session.pop('oauth_popup', None)
         return render_template('close_popup.html')
         
+    # Check if this page is already connected by another client account
+    current_user_id = session.get('admin_id')
+    existing_conn = Setting.query.filter(
+        Setting.key == "page_id",
+        Setting.value == selected_page['id'],
+        Setting.user_id != current_user_id
+    ).first()
+    
+    if existing_conn:
+        flash("صفحة الفيسبوك هذه مرتبطة بالفعل بحساب عميل آخر. يرجى اختيار صفحة أخرى.", "danger")
+        session.pop('oauth_pages', None)
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+        
     # Save settings to database
     Setting.set("page_id", selected_page['id'])
     Setting.set("page_access_token", selected_page['access_token'])

@@ -660,5 +660,106 @@ class FacebookBotTestCase(unittest.TestCase):
             u = Admin.query.get(client_id)
             self.assertIsNone(u)
 
+    def test_dynamic_timeouts_and_permanence(self):
+        """Verify session timeouts and permanence for developer (30m, permanent) and clients (10m, non-permanent)."""
+        # Seed test users
+        with self.app.app_context():
+            dev = Admin(username='dev_timeout_test', role='developer')
+            dev.set_password('devpass')
+            db.session.add(dev)
+            
+            client = Admin(username='client_timeout_test', role='user')
+            client.set_password('clientpass')
+            db.session.add(client)
+            db.session.commit()
+            
+        # 1. Log in as developer
+        self.client.post('/login', data=dict(
+            username='dev_timeout_test',
+            password='devpass'
+        ), follow_redirects=True)
+        
+        # Access a page to trigger before_request check
+        self.client.get('/developer/users')
+        with self.client.session_transaction() as sess:
+            self.assertTrue(sess.permanent)
+            # Verify last activity was set
+            self.assertIn('last_activity', sess)
+            
+        self.client.get('/logout')
+        
+        # 2. Log in as client user
+        self.client.post('/login', data=dict(
+            username='client_timeout_test',
+            password='clientpass'
+        ), follow_redirects=True)
+        
+        # Access a page to trigger before_request check
+        self.client.get('/dashboard')
+        with self.client.session_transaction() as sess:
+            self.assertFalse(sess.permanent)
+            self.assertIn('last_activity', sess)
+            
+    def test_unique_page_connection(self):
+        """Verify that multiple client accounts cannot connect the same Facebook page ID."""
+        # Seed test users
+        with self.app.app_context():
+            client_a = Admin(username='client_a', role='user')
+            client_a.set_password('pass')
+            db.session.add(client_a)
+            
+            client_b = Admin(username='client_b', role='user')
+            client_b.set_password('pass')
+            db.session.add(client_b)
+            db.session.commit()
+            client_a_id = client_a.id
+            client_b_id = client_b.id
+
+        # Log in as Client A and set a page_id setting
+        self.client.post('/login', data=dict(
+            username='client_a',
+            password='pass'
+        ), follow_redirects=True)
+        
+        with self.app.app_context():
+            Setting.set("page_id", "123456789", user_id=client_a_id)
+            Setting.set("page_access_token", "token_a", user_id=client_a_id)
+            Setting.set("page_name", "Page A", user_id=client_a_id)
+            
+        self.client.get('/logout')
+        
+        # Log in as Client B
+        self.client.post('/login', data=dict(
+            username='client_b',
+            password='pass'
+        ), follow_redirects=True)
+        
+        # Mock session oauth selection variables
+        with self.client.session_transaction() as sess:
+            sess['oauth_popup'] = True
+            sess['oauth_pages'] = [
+                {
+                    'id': '123456789',
+                    'name': 'Page A Duplicate',
+                    'access_token': 'token_b',
+                    'category': 'Business'
+                }
+            ]
+            
+        # Post to select page - should fail unique check
+        resp = self.client.post('/settings/facebook/select', data=dict(
+            page_id='123456789'
+        ), follow_redirects=True)
+        
+        with self.client.session_transaction() as sess:
+            flashes = sess.get('_flashes', [])
+            flash_messages = [msg for cat, msg in flashes]
+            self.assertIn("صفحة الفيسبوك هذه مرتبطة بالفعل بحساب عميل آخر. يرجى اختيار صفحة أخرى.", flash_messages)
+        
+        # Verify page ID setting was not changed for client B
+        with self.app.app_context():
+            setting_obj = Setting.query.filter_by(key="page_id", user_id=client_b_id).first()
+            self.assertIsNone(setting_obj)
+
 if __name__ == "__main__":
     unittest.main()

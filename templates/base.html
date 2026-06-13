@@ -168,9 +168,17 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     {% if session.get('admin_logged_in') %}
-    <!-- Auto-Logout due to 1-minute inactivity -->
+    <!-- Dynamic Inactivity Inactivity Timeout & Tab Session Verification -->
     <script>
     (function() {
+        {% if not is_developer %}
+        // If tab was closed and user reopens, sessionStorage will be empty
+        if (!sessionStorage.getItem('tab_session_active')) {
+            window.location.href = "{{ url_for('auth.logout') }}";
+            return;
+        }
+        {% endif %}
+
         let inactivityTime = function() {
             let time;
             // Events that reset the inactivity timer
@@ -187,8 +195,9 @@
 
             function resetTimer() {
                 clearTimeout(time);
-                // 60000 milliseconds = 1 minute
-                time = setTimeout(logout, 60000);
+                // 30 minutes for developer (1,800,000ms), 10 minutes for normal client (600,000ms)
+                let timeout_duration = {% if is_developer %}1800000{% else %}600000{% endif %};
+                time = setTimeout(logout, timeout_duration);
             }
         };
         inactivityTime();

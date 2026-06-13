@@ -52,3 +52,16 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.querySelector('form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function() {
+            sessionStorage.setItem('tab_session_active', 'true');
+        });
+    }
+});
+</script>
+{% endblock %}
