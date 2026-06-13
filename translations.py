@@ -99,7 +99,26 @@ translations = {
         'tunnel_health': 'Tunnel base URL health',
         'webhook_health': 'Webhook sub status',
         'health_refresh_msg': 'Status updates automatically every 30 seconds.',
-        'last_checked': 'Last Checked'
+        'last_checked': 'Last Checked',
+        
+        # Messenger Bot
+        'messenger_bot': 'Messenger Bot',
+        'messenger_settings': 'Messenger Auto-Responder Settings',
+        'messenger_enabled_lbl': 'Enable Messenger Auto-Responder',
+        'messenger_tone_lbl': 'AI Response Tone',
+        'messenger_kb_lbl': 'Knowledge Base (Services, Pricing, Plans)',
+        'messenger_kb_desc': 'Feed the AI with details about your subscriptions, plans, address, prices. The AI will refer ONLY to this text when replying.',
+        'messenger_faqs_title': 'Messenger FAQ Keywords & Custom Replies',
+        'messenger_faq_kw_lbl': 'Keywords (comma-separated)',
+        'messenger_faq_resp_lbl': 'Custom Response',
+        'add_faq_btn': 'Add FAQ Rule',
+        'faq_list_lbl': 'Active FAQ Rules',
+        'faq_delete_confirm': 'Are you sure you want to delete this FAQ rule?',
+        'tone_casual': 'Casual & Chatty',
+        'tone_professional': 'Professional & Respectful',
+        'tone_formal': 'Formal Classical',
+        'tone_friendly': 'Friendly & Welcoming',
+        'no_faqs': 'No custom FAQ rules added yet.'
     },
     'ar': {
         'brand': 'يوسف بوت',
@@ -201,6 +220,25 @@ translations = {
         'tunnel_health': 'صحة رابط النفق المحلي (Tunnel)',
         'webhook_health': 'حالة اشتراك الويب هوك',
         'health_refresh_msg': 'تحدث الحالة تلقائياً كل 30 ثانية.',
-        'last_checked': 'آخر فحص'
+        'last_checked': 'آخر فحص',
+        
+        # Messenger Bot
+        'messenger_bot': 'المجيب الآلي (ماسنجر)',
+        'messenger_settings': 'إعدادات المجيب الآلي في ماسنجر',
+        'messenger_enabled_lbl': 'تفعيل الرد التلقائي في ماسنجر',
+        'messenger_tone_lbl': 'أسلوب رد الذكاء الاصطناعي',
+        'messenger_kb_lbl': 'قاعدة المعرفة (تفاصيل خدماتك، اشتراكاتك وأسعارك)',
+        'messenger_kb_desc': 'أدخل هنا تفاصيل خدماتك، خططك، أسعارك وعناوينك. سيجيب الذكاء الاصطناعي بناءً على هذا النص فقط وبشكل صارم.',
+        'messenger_faqs_title': 'الكلمات المفتاحية والردود المخصصة في ماسنجر',
+        'messenger_faq_kw_lbl': 'الكلمات المفتاحية (مفصولة بفاصلة)',
+        'messenger_faq_resp_lbl': 'الرد المخصص',
+        'add_faq_btn': 'إضافة قاعدة رد',
+        'faq_list_lbl': 'قواعد الرد النشطة',
+        'faq_delete_confirm': 'هل أنت متأكد من رغبتك في حذف قاعدة الرد هذه؟',
+        'tone_casual': 'ودي وعامي',
+        'tone_professional': 'احترافي ومهني',
+        'tone_formal': 'رسمي فصحى',
+        'tone_friendly': 'ودود ولطيف',
+        'no_faqs': 'لا توجد قواعد رد مخصصة مضافة حالياً.'
     }
 }

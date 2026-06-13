@@ -32,12 +32,14 @@ def create_app():
     from routes.posts import posts_bp
     from routes.settings import settings_bp
     from routes.webhook import webhook_bp
+    from routes.messenger import messenger_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(posts_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(webhook_bp)
+    app.register_blueprint(messenger_bp)
     
     # Context Processor for Bilingual/Arabic RTL translations
     @app.context_processor
@@ -102,6 +104,9 @@ def create_app():
         seed_setting("page_id", Config.DEFAULT_PAGE_ID)
         seed_setting("tunnel_url", Config.DEFAULT_TUNNEL_URL)
         seed_setting("gemini_api_key", Config.DEFAULT_GEMINI_API_KEY)
+        seed_setting("messenger_bot_enabled", Config.DEFAULT_MESSENGER_BOT_ENABLED)
+        seed_setting("messenger_bot_tone", Config.DEFAULT_MESSENGER_BOT_TONE)
+        seed_setting("messenger_bot_kb", Config.DEFAULT_MESSENGER_BOT_KB)
         
         if not Setting.get("anti_spam_mode"):
             Setting.set("anti_spam_mode", "every_comment")

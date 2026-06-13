@@ -197,6 +197,36 @@ class FacebookApiService:
         except Exception as e:
             return False, f"Exception occurred: {str(e)}"
 
+    def send_messenger_message(self, recipient_id, text):
+        """Sends a direct message to a user on Messenger."""
+        if not self.token or not self.page_id:
+            return False, "Missing credentials"
+        
+        endpoint = f"{BASE_URL}/{self.page_id}/messages"
+        payload = {
+            "recipient": {
+                "id": recipient_id
+            },
+            "message": {
+                "text": text
+            }
+        }
+        params = {"access_token": self.token}
+        
+        try:
+            response = requests.post(endpoint, params=params, json=payload, timeout=10)
+            self._log_call(f"/{self.page_id}/messages", "POST", payload, response)
+            
+            if response.status_code == 200:
+                return True, "Messenger message sent successfully"
+            else:
+                err_data = response.json().get("error", {})
+                err_msg = err_data.get("message", "Unknown Meta Graph API error.")
+                err_code = err_data.get("code")
+                return False, f"API Error (Code {err_code}): {err_msg}"
+        except Exception as e:
+            return False, f"Exception occurred: {str(e)}"
+
     @staticmethod
     def parse_template(template_str, user_name, comment_text, post_id, comment_date):
         """Replaces variables in a message template."""

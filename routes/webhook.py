@@ -103,9 +103,10 @@ def handle_event():
     db.session.add(log_db)
     db.session.commit()
 
-    # 2. Check for feed changes (new comments)
+    # 2. Check for feed changes (new comments) or direct messages (messaging)
     if data.get("object") == "page":
         for entry in data.get("entry", []):
+            # A. Handle comments (feed changes)
             for change in entry.get("changes", []):
                 if change.get("field") == "feed":
                     val = change.get("value", {})
@@ -148,6 +149,40 @@ def handle_event():
                         )
                         
                         print(f"Enqueued comment {comment_id} for processing.")
+            
+            # B. Handle direct Messenger messages
+            if "messaging" in entry:
+                for messaging_event in entry.get("messaging", []):
+                    sender_id = messaging_event.get("sender", {}).get("id")
+                    recipient_id = messaging_event.get("recipient", {}).get("id")
+                    page_id = Setting.get("page_id")
+                    
+                    # Skip messages sent by the page itself to prevent loop
+                    if sender_id and sender_id != page_id:
+                        message_data = messaging_event.get("message", {})
+                        # Ignore echo messages and non-text messages
+                        if "text" in message_data and not message_data.get("is_echo"):
+                            message_text = message_data.get("text", "")
+                            message_id = message_data.get("mid")
+                            
+                            msg_details = {
+                                "sender_id": sender_id,
+                                "message_text": message_text,
+                                "message_id": message_id,
+                                "timestamp": messaging_event.get("timestamp")
+                            }
+                            
+                            from services.messenger_processor import process_messenger_job
+                            app_ref = current_app._get_current_object()
+                            scheduler.add_job(
+                                func=process_messenger_job,
+                                trigger='date',
+                                args=[app_ref, msg_details],
+                                id=f"process_msg_{message_id}",
+                                name=f"Process Messenger message {message_id} from {sender_id}",
+                                replace_existing=True
+                            )
+                            print(f"Enqueued Messenger message {message_id} for processing.")
 
     # 3. Return HTTP 200 immediately
     return jsonify({"status": "received"}), 200

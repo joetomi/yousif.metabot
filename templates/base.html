@@ -83,6 +83,11 @@
                     <i class="fa-solid fa-newspaper"></i> {{ t.posts }}
                 </a>
             </li>
+            <li class="{% if request.path == '/messenger' %}active{% endif %}">
+                <a href="{{ url_for('messenger.index') }}">
+                    <i class="fa-brands fa-facebook-messenger"></i> {{ t.messenger_bot }}
+                </a>
+            </li>
             <li class="{% if request.path == '/logs' %}active{% endif %}">
                 <a href="{{ url_for('dashboard.view_logs') }}">
                     <i class="fa-solid fa-list-check"></i> {{ t.logs }}

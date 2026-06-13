@@ -102,6 +102,25 @@ class ProcessedUser(db.Model):
     processed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class MessengerFAQ(db.Model):
+    __tablename__ = 'messenger_faqs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    keyword = db.Column(db.String(100), nullable=False)  # Comma-separated search words
+    response = db.Column(db.Text, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ProcessedMessage(db.Model):
+    __tablename__ = 'processed_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.String(150), unique=True, nullable=False) # Meta message ID (mid)
+    processed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+
 class ApiLog(db.Model):
     __tablename__ = 'api_logs'
     

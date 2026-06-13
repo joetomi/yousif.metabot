@@ -52,3 +52,14 @@ class Config:
     # Gemini AI defaults
     DEFAULT_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     DEFAULT_GEMINI_SYSTEM_INSTRUCTION = os.getenv("GEMINI_SYSTEM_INSTRUCTION", "أنت مساعد ذكي ولطيف، أجب على استفسار العميل باحترافية واختصار.")
+    
+    # Messenger Bot defaults
+    messenger_bot_enabled = os.getenv("MESSENGER_BOT_ENABLED", "false")
+    DEFAULT_MESSENGER_BOT_ENABLED = "true" if messenger_bot_enabled.lower() == "true" else "false"
+    
+    messenger_bot_tone = os.getenv("MESSENGER_BOT_TONE", "professional")
+    if messenger_bot_tone.lower() not in ["casual", "professional", "formal", "friendly"]:
+        messenger_bot_tone = "professional"
+    DEFAULT_MESSENGER_BOT_TONE = messenger_bot_tone
+    
+    DEFAULT_MESSENGER_BOT_KB = os.getenv("MESSENGER_BOT_KB", "أهلاً بك في خدماتنا! نحن نقدم خطط اشتراك مميزة تناسب احتياجاتك.")

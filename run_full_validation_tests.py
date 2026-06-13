@@ -12,7 +12,7 @@ os.environ["SECRET_KEY"] = "test-secret-key-987654321"
 os.environ["TESTING"] = "True"
 
 from app import create_app
-from models import db, Admin, Setting, Post, Comment, Message, ProcessedUser, ApiLog, ActivityLog, WebhookLog
+from models import db, Admin, Setting, Post, Comment, Message, ProcessedUser, ApiLog, ActivityLog, WebhookLog, MessengerFAQ, ProcessedMessage
 from services.facebook_api import FacebookApiService
 from services.comment_processor import process_comment_job, check_anti_spam
 
@@ -447,6 +447,120 @@ class FacebookBotTestCase(unittest.TestCase):
             self.assertFalse(admin.check_password('wrongpassword'))
             # Check prefix of password hash matches pbkdf2
             self.assertTrue(admin.password_hash.startswith("scrypt:") or admin.password_hash.startswith("pbkdf2:sha256:"))
+
+    # 15. Verify Messenger Bot Routes
+    def test_messenger_bot_routes(self):
+        """Verify settings storage, FAQ creation, and deletion on Messenger routes."""
+        self.login_admin()
+        
+        # Access index
+        resp = self.client.get('/messenger')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'Messenger Auto-Responder Settings', resp.data)
+        
+        # Save settings
+        resp = self.client.post('/messenger/save-settings', data=dict(
+            messenger_bot_enabled='true',
+            messenger_bot_tone='casual',
+            messenger_bot_kb='Custom KB plans'
+        ), follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'Messenger Bot settings saved successfully!', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("messenger_bot_enabled"), "true")
+            self.assertEqual(Setting.get("messenger_bot_tone"), "casual")
+            self.assertEqual(Setting.get("messenger_bot_kb"), "Custom KB plans")
+            
+        # Add FAQ rule
+        resp = self.client.post('/messenger/faq/add', data=dict(
+            keyword='price, cost',
+            response='Prices start at $10'
+        ), follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'FAQ rule added successfully!', resp.data)
+        
+        with self.app.app_context():
+            faq = MessengerFAQ.query.filter_by(keyword='price, cost').first()
+            self.assertIsNotNone(faq)
+            self.assertEqual(faq.response, 'Prices start at $10')
+            faq_id = faq.id
+            
+        # Delete FAQ rule
+        resp = self.client.post(f'/messenger/faq/delete/{faq_id}', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'FAQ rule deleted successfully!', resp.data)
+        
+        with self.app.app_context():
+            faq = MessengerFAQ.query.get(faq_id)
+            self.assertIsNone(faq)
+
+    # 16. Verify Messenger Webhook and Processor Flow
+    @patch('services.facebook_api.requests.post')
+    @patch('services.scheduler.scheduler.add_job')
+    def test_messenger_webhook_and_processor(self, mock_add_job, mock_post):
+        """Verify Messenger webhook parsing and direct FAQ reply processor."""
+        # 1. Test Webhook parsing
+        payload = {
+            "object": "page",
+            "entry": [{
+                "id": "page_id_123",
+                "time": 16000000,
+                "messaging": [{
+                    "sender": {"id": "customer_id_456"},
+                    "recipient": {"id": "page_id_123"},
+                    "timestamp": 16000000,
+                    "message": {
+                        "mid": "mid.test_msg_999",
+                        "text": "Hello, what are your plans?"
+                    }
+                }]
+            }]
+        }
+        
+        app_secret = "test_secret"
+        payload_bytes = json.dumps(payload).encode()
+        signature = "sha256=" + hmac.new(app_secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+        
+        headers = {'X-Hub-Signature-256': signature}
+        resp = self.client.post('/webhook', data=payload_bytes, headers=headers, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_add_job.called)
+        
+        # 2. Test Processor matching FAQ keywords
+        from services.messenger_processor import process_messenger_job
+        
+        # Setup configs and FAQ rule
+        with self.app.app_context():
+            Setting.set("messenger_bot_enabled", "true")
+            # Clear duplicate record if any
+            ProcessedMessage.query.filter_by(message_id="mid.test_msg_999").delete()
+            
+            faq = MessengerFAQ(keyword="plans, prices", response="FAQ: We have three plans.")
+            db.session.add(faq)
+            db.session.commit()
+            
+        # Mock Graph API success
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true}'
+        mock_post.return_value = mock_resp
+        
+        msg_details = {
+            "sender_id": "customer_id_456",
+            "message_text": "I want to know about your plans.",
+            "message_id": "mid.test_msg_999"
+        }
+        
+        # Run background job sync
+        process_messenger_job(self.app, msg_details)
+        
+        # Verify Facebook send message API was called with the FAQ response
+        self.assertTrue(mock_post.called)
+        call_args = mock_post.call_args[1]
+        self.assertIn("messages", mock_post.call_args[0][0]) # endpoint contains /messages
+        self.assertEqual(call_args['json']['recipient']['id'], "customer_id_456")
+        self.assertEqual(call_args['json']['message']['text'], "FAQ: We have three plans.")
 
 if __name__ == "__main__":
     unittest.main()

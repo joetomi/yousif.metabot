@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.messenger_settings }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header banner -->
+    <div class="glass-card p-4 mb-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <div class="d-inline-flex align-items-center justify-content-center bg-primary rounded-circle me-3" style="width: 50px; height: 50px; background: rgba(59, 130, 246, 0.15) !important;">
+                <i class="fa-brands fa-facebook-messenger text-primary fa-lg"></i>
+            </div>
+            <div>
+                <h1 class="h4 text-white font-weight-bold mb-1">{{ t.messenger_settings }}</h1>
+                <p class="text-secondary mb-0 small">Configure automated Messenger inbox interactions powered by Gemini AI and FAQ keywords.</p>
+            </div>
+        </div>
+        
+        <!-- Status indicator widget -->
+        <div class="d-flex align-items-center">
+            {% if bot_enabled == 'true' %}
+            <span class="badge" style="background: rgba(17, 202, 160, 0.1); color: #11caa0; border: 1px solid rgba(17, 202, 160, 0.2); box-shadow: 0 0 10px rgba(17, 202, 160, 0.1);">
+                <i class="fa-solid fa-circle me-1 small animate-pulse"></i> Auto-Response Active
+            </span>
+            {% else %}
+            <span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">
+                <i class="fa-solid fa-circle me-1 small"></i> Disabled
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Configuration card -->
+        <div class="col-xl-6 col-lg-12 mb-4">
+            <div class="card glass-card h-100 p-4">
+                <h5 class="text-white font-weight-bold mb-4 border-bottom border-secondary pb-2" style="border-color: rgba(255,255,255,0.08) !important;">
+                    <i class="fa-solid fa-sliders text-info me-2"></i> Settings & Knowledge Base
+                </h5>
+                
+                <form action="{{ url_for('messenger.save_settings') }}" method="POST">
+                    <!-- Enable switch -->
+                    <div class="form-check form-switch mb-4 p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-check-label text-white font-weight-bold" for="messenger_bot_enabled" style="cursor: pointer;">
+                                {{ t.messenger_enabled_lbl }}
+                            </label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="messenger_bot_enabled" name="messenger_bot_enabled" value="true" {% if bot_enabled == 'true' %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                        </div>
+                    </div>
+                    
+                    <!-- Tone selector -->
+                    <div class="mb-4">
+                        <label for="messenger_bot_tone" class="form-label text-white font-weight-bold">{{ t.messenger_tone_lbl }}</label>
+                        <select class="form-select bg-dark text-white border-secondary" id="messenger_bot_tone" name="messenger_bot_tone" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                            <option value="professional" {% if bot_tone == 'professional' %}selected{% endif %}>{{ t.tone_professional }}</option>
+                            <option value="casual" {% if bot_tone == 'casual' %}selected{% endif %}>{{ t.tone_casual }}</option>
+                            <option value="friendly" {% if bot_tone == 'friendly' %}selected{% endif %}>{{ t.tone_friendly }}</option>
+                            <option value="formal" {% if bot_tone == 'formal' %}selected{% endif %}>{{ t.tone_formal }}</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Knowledge Base -->
+                    <div class="mb-4">
+                        <label for="messenger_bot_kb" class="form-label text-white font-weight-bold d-flex justify-content-between">
+                            <span>{{ t.messenger_kb_lbl }}</span>
+                            <span class="badge bg-secondary font-weight-normal small" style="font-size: 0.75em;">Strict AI References</span>
+                        </label>
+                        <textarea class="form-control bg-dark text-white border-secondary" id="messenger_bot_kb" name="messenger_bot_kb" rows="8" placeholder="Enter subscriptions plans, address, contacts details..." style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important; font-size: 0.9em; line-height: 1.5; resize: vertical;">{{ bot_kb }}</textarea>
+                        <div class="form-text text-secondary mt-2 small">
+                            <i class="fa-solid fa-circle-info me-1"></i> {{ t.messenger_kb_desc }}
+                        </div>
+                    </div>
+                    
+                    <!-- Action button -->
+                    <div class="border-top border-secondary pt-3 d-flex justify-content-end" style="border-color: rgba(255,255,255,0.08) !important;">
+                        <button type="submit" class="btn btn-emerald px-4">
+                            <i class="fa-solid fa-floppy-disk me-2"></i> {{ t.save_settings }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- FAQ Manager card -->
+        <div class="col-xl-6 col-lg-12 mb-4">
+            <div class="card glass-card p-4">
+                <h5 class="text-white font-weight-bold mb-4 border-bottom border-secondary pb-2" style="border-color: rgba(255,255,255,0.08) !important;">
+                    <i class="fa-solid fa-tags text-warning me-2"></i> {{ t.messenger_faqs_title }}
+                </h5>
+                
+                <!-- Add FAQ form -->
+                <form action="{{ url_for('messenger.add_faq') }}" method="POST" class="mb-4 p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                    <div class="mb-3">
+                        <label for="keyword" class="form-label text-white font-weight-bold small">{{ t.messenger_faq_kw_lbl }}</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" id="keyword" name="keyword" placeholder="plans, subscribe,خطط, اشتراك" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="response" class="form-label text-white font-weight-bold small">{{ t.messenger_faq_resp_lbl }}</label>
+                        <textarea class="form-control bg-dark text-white border-secondary" id="response" name="response" rows="3" placeholder="Enter custom answer when keywords are mentioned..." style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important; font-size: 0.9em;" required></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary btn-sm px-3 py-2">
+                            <i class="fa-solid fa-plus me-1"></i> {{ t.add_faq_btn }}
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- FAQ Rules list -->
+                <h6 class="text-white font-weight-bold mb-3">{{ t.faq_list_lbl }}</h6>
+                <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                    <table class="table table-dark table-hover border-secondary align-middle mb-0" style="--bs-table-bg: transparent; border-color: rgba(255,255,255,0.05);">
+                        <thead>
+                            <tr style="color: rgba(255,255,255,0.4);">
+                                <th scope="col" style="font-size: 0.85em; font-weight: 500; border-color: rgba(255,255,255,0.08);">Keywords</th>
+                                <th scope="col" style="font-size: 0.85em; font-weight: 500; border-color: rgba(255,255,255,0.08);">Response</th>
+                                <th scope="col" class="text-end" style="font-size: 0.85em; font-weight: 500; border-color: rgba(255,255,255,0.08);">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for faq in faqs %}
+                            <tr style="border-color: rgba(255,255,255,0.04);">
+                                <td style="border-color: rgba(255,255,255,0.04);">
+                                    {% for kw in faq.keyword.split(",") %}
+                                    <span class="badge bg-secondary me-1 mb-1 small" style="background: rgba(255,255,255,0.08) !important; color: #e2e8f0; font-size: 0.75em;">{{ kw.strip() }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-secondary small text-truncate" style="max-width: 200px; border-color: rgba(255,255,255,0.04);" title="{{ faq.response }}">
+                                    {{ faq.response }}
+                                </td>
+                                <td class="text-end" style="border-color: rgba(255,255,255,0.04);">
+                                    <form action="{{ url_for('messenger.delete_faq', faq_id=faq.id) }}" method="POST" onsubmit="return confirm('{{ t.faq_delete_confirm }}');" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm p-1 px-2 border-0" title="Delete">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-secondary py-4 small">
+                                    <i class="fa-regular fa-folder-open d-block mb-2 fa-2x"></i>
+                                    {{ t.no_faqs }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
