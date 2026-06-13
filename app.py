@@ -83,7 +83,8 @@ def create_app():
             print("Seeded default administrator: Username: 'admin', Password: 'admin'")
 
         # 2. Seed Default Settings from environment (config.py defaults)
-        if not Setting.get("app_id"):
+        app_id_db = Setting.get("app_id")
+        if not app_id_db or app_id_db.strip() == "":
             Setting.set("app_id", Config.DEFAULT_APP_ID)
         if not Setting.get("page_access_token"):
             Setting.set("page_access_token", Config.DEFAULT_PAGE_ACCESS_TOKEN)

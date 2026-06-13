@@ -20,7 +20,7 @@ class Config:
     
     # Webhook defaults
     DEFAULT_VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "my_verify_token_123")
-    DEFAULT_APP_ID = os.getenv("APP_ID", "")
+    DEFAULT_APP_ID = os.getenv("APP_ID", "1551224679018427")
     DEFAULT_APP_SECRET = os.getenv("APP_SECRET", "")
     DEFAULT_PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "")
     DEFAULT_PAGE_ID = os.getenv("PAGE_ID", "")
