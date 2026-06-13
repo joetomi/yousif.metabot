@@ -86,5 +86,6 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    # Flask-SocketIO runner, listens on 0.0.0.0:5050
-    socketio.run(app, host='0.0.0.0', port=5050, debug=True, allow_unsafe_werkzeug=True)
+    # Flask-SocketIO runner, listens on dynamic PORT or fallback to 5050
+    port = int(os.environ.get("PORT", 5050))
+    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
