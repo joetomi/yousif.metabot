@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.select_page_title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <!-- Header section -->
+            <div class="glass-card p-4 text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center bg-primary rounded-circle mb-3" style="width: 60px; height: 60px; background: rgba(59, 130, 246, 0.1) !important;">
+                    <i class="fa-brands fa-facebook text-primary fa-2x"></i>
+                </div>
+                <h1 class="h3 text-white font-weight-bold mb-2">{{ t.select_page_title }}</h1>
+                <p class="text-secondary mb-0">{{ t.select_page_desc }}</p>
+            </div>
+            
+            <!-- Pages list container -->
+            <div class="card glass-card p-4">
+                <form action="{{ url_for('settings.facebook_select_page') }}" method="POST">
+                    <div class="list-group list-group-flush bg-transparent mb-4" style="max-height: 400px; overflow-y: auto;">
+                        {% for page in pages %}
+                        <label class="list-group-item d-flex align-items-center justify-content-between p-3 border-secondary bg-transparent text-white hover-card mb-2 rounded" style="cursor: pointer; background: rgba(255,255,255,0.03) !important;">
+                            <div class="d-flex align-items-center">
+                                <input class="form-check-input me-3" type="radio" name="page_id" value="{{ page.id }}" {% if loop.first %}checked{% endif %} style="border-color: rgba(255, 255, 255, 0.3); background-color: rgba(255, 255, 255, 0.1); width: 1.25em; height: 1.25em;">
+                                <div>
+                                    <h6 class="mb-1 text-white font-weight-bold">{{ page.name }}</h6>
+                                    <span class="text-secondary small">ID: {{ page.id }} &bull; {{ page.category }}</span>
+                                </div>
+                            </div>
+                            <span class="badge" style="background: rgba(17, 202, 160, 0.1); color: #11caa0;">Ready</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between align-items-center border-top border-secondary pt-3">
+                        <a href="{{ url_for('settings.index') }}" class="btn btn-glass">
+                            <i class="fa-solid fa-arrow-left me-2"></i> {{ t.close_btn }}
+                        </a>
+                        <button type="submit" class="btn btn-emerald">
+                            <i class="fa-solid fa-circle-check me-2"></i> {{ t.select_page_btn }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -83,6 +83,8 @@ def create_app():
             print("Seeded default administrator: Username: 'admin', Password: 'admin'")
 
         # 2. Seed Default Settings from environment (config.py defaults)
+        if not Setting.get("app_id"):
+            Setting.set("app_id", Config.DEFAULT_APP_ID)
         if not Setting.get("page_access_token"):
             Setting.set("page_access_token", Config.DEFAULT_PAGE_ACCESS_TOKEN)
         if not Setting.get("app_secret"):
@@ -95,6 +97,12 @@ def create_app():
             Setting.set("tunnel_url", Config.DEFAULT_TUNNEL_URL)
         if not Setting.get("anti_spam_mode"):
             Setting.set("anti_spam_mode", "every_comment")
+        if not Setting.get("gemini_api_key"):
+            Setting.set("gemini_api_key", Config.DEFAULT_GEMINI_API_KEY)
+        if not Setting.get("gemini_enabled"):
+            Setting.set("gemini_enabled", "false")
+        if not Setting.get("gemini_system_instruction"):
+            Setting.set("gemini_system_instruction", Config.DEFAULT_GEMINI_SYSTEM_INSTRUCTION)
 
         # 3. Start APScheduler Background Scheduler only if not in testing and in main worker process
         if os.environ.get("TESTING") != "True" and (not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true'):

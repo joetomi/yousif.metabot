@@ -133,16 +133,27 @@ def process_comment_job(app, comment_data):
         # Initialize Graph API Service
         api = FacebookApiService()
 
-        # 4. Formulate templates
-        reply_template = post.default_reply or "Thank you for your comment. We have sent details to your inbox."
-        private_template = post.private_message or "Hello {name}, thank you for your message."
-        
-        parsed_reply = FacebookApiService.parse_template(
-            reply_template, username, message_text, post_id, created_time
-        )
-        parsed_private = FacebookApiService.parse_template(
-            private_template, username, message_text, post_id, created_time
-        )
+        # 4. Formulate templates (try Gemini AI first, fallback to static templates)
+        ai_replies = None
+        try:
+            from services.gemini_api import generate_ai_replies
+            ai_replies = generate_ai_replies(message_text, username, post.message)
+        except Exception as ai_ex:
+            print(f"Exception calling Gemini service: {ai_ex}")
+            
+        if ai_replies:
+            parsed_reply, parsed_private = ai_replies
+            print(f"Using Gemini generated replies for comment {comment_id}.")
+        else:
+            reply_template = post.default_reply or "Thank you for your comment. We have sent details to your inbox."
+            private_template = post.private_message or "Hello {name}, thank you for your message."
+            
+            parsed_reply = FacebookApiService.parse_template(
+                reply_template, username, message_text, post_id, created_time
+            )
+            parsed_private = FacebookApiService.parse_template(
+                private_template, username, message_text, post_id, created_time
+            )
 
         # 5. Public Reply
         reply_success, reply_msg, reply_fb_id = api.reply_to_comment(comment_id, parsed_reply)

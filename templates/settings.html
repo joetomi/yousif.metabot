@@ -16,7 +16,36 @@
             <div class="card glass-card">
                 <h5 class="card-title-accent text-white mb-4">{{ t.settings_title }}</h5>
                 
+                <!-- Facebook OAuth Connect Banner -->
+                <div class="mb-4 p-3 rounded d-flex align-items-center justify-content-between" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); backdrop-filter: blur(8px);">
+                    <div class="d-flex align-items-center">
+                        <i class="fa-brands fa-facebook text-primary fa-2x me-3"></i>
+                        <div>
+                            <h6 class="mb-0 text-white font-weight-bold">{{ t.connect_fb_btn }}</h6>
+                            <span class="text-secondary small">Retrieve page access tokens and link your Page automatically.</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-primary btn-sm px-3" {% if not app_id or not app_secret %}onclick="alert('Please save your Meta App ID and App Secret first!'); return false;"{% endif %}>
+                        <i class="fa-brands fa-facebook me-2"></i> {{ t.connect_fb_btn }}
+                    </a>
+                </div>
+                
                 <form id="settings-form" action="{{ url_for('settings.save') }}" method="POST">
+                    <!-- Meta App Credentials -->
+                    <div class="row mb-3">
+                        <!-- Meta App ID -->
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="app_id" class="form-label text-secondary fw-semibold">{{ t.app_id_label }}</label>
+                            <input type="text" class="form-control glass-input" id="app_id" name="app_id" value="{{ app_id }}" placeholder="e.g. 1551224679018427">
+                        </div>
+                        
+                        <!-- Meta App Secret -->
+                        <div class="col-md-6">
+                            <label for="app_secret" class="form-label text-secondary fw-semibold">{{ t.app_secret_label }}</label>
+                            <input type="password" class="form-control glass-input" id="app_secret" name="app_secret" value="{{ app_secret }}" placeholder="e.g. a1b2c3d4...">
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <!-- Facebook Page ID -->
                         <div class="col-md-6 mb-3">
@@ -29,12 +58,6 @@
                             <label for="verify_token" class="form-label text-secondary fw-semibold">{{ t.verify_token_label }}</label>
                             <input type="text" class="form-control glass-input" id="verify_token" name="verify_token" value="{{ verify_token }}" required placeholder="e.g. my_custom_token_123">
                         </div>
-                    </div>
-                    
-                    <!-- App Secret -->
-                    <div class="mb-3">
-                        <label for="app_secret" class="form-label text-secondary fw-semibold">{{ t.app_secret_label }}</label>
-                        <input type="password" class="form-control glass-input" id="app_secret" name="app_secret" value="{{ app_secret }}" placeholder="e.g. a1b2c3d4e5f6g7h8i9j0...">
                     </div>
 
                     <!-- Page Access Token -->
@@ -67,8 +90,34 @@
                         </select>
                     </div>
 
+                    <!-- Gemini AI Section -->
+                    <div class="border-top border-secondary pt-4 mt-4 mb-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fa-solid fa-wand-magic-sparkles text-emerald me-2 fa-lg"></i>
+                            <h6 class="text-white font-weight-bold mb-0">{{ t.gemini_title }}</h6>
+                        </div>
+                        
+                        <!-- Enable Gemini Toggle -->
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="gemini_enabled" name="gemini_enabled" value="true" {% if gemini_enabled == 'true' %}checked{% endif %} style="cursor: pointer;">
+                            <label class="form-check-label text-secondary fw-semibold" for="gemini_enabled">{{ t.gemini_enabled_label }}</label>
+                        </div>
+                        
+                        <!-- Gemini API Key -->
+                        <div class="mb-3" id="gemini-key-group" style="display: {% if gemini_enabled == 'true' %}block{% else %}none{% endif %};">
+                            <label for="gemini_api_key" class="form-label text-secondary fw-semibold">{{ t.gemini_api_key_label }}</label>
+                            <input type="password" class="form-control glass-input" id="gemini_api_key" name="gemini_api_key" value="{{ gemini_api_key }}" placeholder="e.g. AIzaSy...">
+                        </div>
+                        
+                        <!-- Gemini Instructions -->
+                        <div class="mb-3" id="gemini-prompt-group" style="display: {% if gemini_enabled == 'true' %}block{% else %}none{% endif %};">
+                            <label for="gemini_system_instruction" class="form-label text-secondary fw-semibold">{{ t.gemini_system_instruction_label }}</label>
+                            <textarea class="form-control glass-input" id="gemini_system_instruction" name="gemini_system_instruction" rows="3" placeholder="أنت مساعد ذكي ولطيف، أجب على استفسار العميل باحترافية واختصار.">{{ gemini_system_instruction }}</textarea>
+                        </div>
+                    </div>
+
                     <!-- Action Buttons -->
-                    <div class="d-flex flex-wrap gap-2 pt-2 border-top border-secondary">
+                    <div class="d-flex flex-wrap gap-2 pt-3 border-top border-secondary">
                         <button type="submit" class="btn btn-emerald">
                             <i class="fa-solid fa-floppy-disk me-2"></i> {{ t.save_settings }}
                         </button>
@@ -121,6 +170,19 @@
 document.addEventListener("DOMContentLoaded", function() {
     // Fill textareas since browser autocomplete may interfere
     document.getElementById("page_access_token").value = "{{ page_access_token }}";
+    
+    // Toggle Gemini Settings display
+    const geminiToggle = document.getElementById("gemini_enabled");
+    const keyGroup = document.getElementById("gemini-key-group");
+    const promptGroup = document.getElementById("gemini-prompt-group");
+    
+    if (geminiToggle) {
+        geminiToggle.addEventListener("change", function() {
+            const display = this.checked ? "block" : "none";
+            keyGroup.style.display = display;
+            promptGroup.style.display = display;
+        });
+    }
 });
 </script>
 {% endblock %}

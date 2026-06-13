@@ -31,10 +31,23 @@ translations = {
         
         # Settings
         'settings_title': 'Facebook Integration Settings',
+        'app_id_label': 'Meta App ID',
         'page_token_label': 'Page Access Token',
         'app_secret_label': 'Meta App Secret',
         'verify_token_label': 'Verify Token',
         'page_id_label': 'Facebook Page ID',
+        'connect_fb_btn': 'Connect with Facebook',
+        
+        # Gemini AI Settings
+        'gemini_title': 'Gemini AI Auto-Responder Integration',
+        'gemini_enabled_label': 'Enable Gemini AI for Responses',
+        'gemini_api_key_label': 'Gemini API Key',
+        'gemini_system_instruction_label': 'AI System Instructions (Prompt)',
+        
+        # Select Page Screen
+        'select_page_title': 'Select Facebook Page',
+        'select_page_desc': 'Choose the Facebook Page you want the auto-responder bot to manage:',
+        'select_page_btn': 'Connect Page',
         'tunnel_url_label': 'Tunnel Base URL',
         'webhook_url_label': 'Generated Webhook URL (Read-only)',
         'anti_spam_label': 'Anti-Spam frequency control',
@@ -120,10 +133,23 @@ translations = {
         
         # Settings
         'settings_title': 'إعدادات التكامل مع فيسبوك',
+        'app_id_label': 'معرّف التطبيق (App ID)',
         'page_token_label': 'رمز وصول الصفحة (Access Token)',
         'app_secret_label': 'رمز التطبيق السري (App Secret)',
         'verify_token_label': 'رمز التحقق (Verify Token)',
         'page_id_label': 'رقم تعريف الصفحة (Page ID)',
+        'connect_fb_btn': 'الاتصال بفيسبوك',
+        
+        # Gemini AI Settings
+        'gemini_title': 'تكامل الرد الذكي باستخدام ذكاء Gemini الاصطناعي',
+        'gemini_enabled_label': 'تفعيل ذكاء Gemini للردود تلقائياً',
+        'gemini_api_key_label': 'مفتاح Gemini API Key',
+        'gemini_system_instruction_label': 'تعليمات وتوجيهات الذكاء الاصطناعي (Prompt)',
+        
+        # Select Page Screen
+        'select_page_title': 'اختر صفحة فيسبوك',
+        'select_page_desc': 'اختر صفحة فيسبوك التي ترغب في ربطها بالمجيب الآلي الذكي:',
+        'select_page_btn': 'ربط الصفحة وتفعيل البوت',
         'tunnel_url_label': 'رابط النفق المحلي (Tunnel URL)',
         'webhook_url_label': 'رابط الويب هوك المولد (للقراءة فقط)',
         'anti_spam_label': 'التحكم في تكرار الردود (مكافحة السبام)',

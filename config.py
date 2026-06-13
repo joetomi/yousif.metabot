@@ -20,7 +20,12 @@ class Config:
     
     # Webhook defaults
     DEFAULT_VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "my_verify_token_123")
+    DEFAULT_APP_ID = os.getenv("APP_ID", "")
     DEFAULT_APP_SECRET = os.getenv("APP_SECRET", "")
     DEFAULT_PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "")
     DEFAULT_PAGE_ID = os.getenv("PAGE_ID", "")
     DEFAULT_TUNNEL_URL = os.getenv("TUNNEL_URL", "https://ready-otters-happen.loca.lt")
+    
+    # Gemini AI defaults
+    DEFAULT_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    DEFAULT_GEMINI_SYSTEM_INSTRUCTION = os.getenv("GEMINI_SYSTEM_INSTRUCTION", "أنت مساعد ذكي ولطيف، أجب على استفسار العميل باحترافية واختصار.")
