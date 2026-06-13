@@ -6,7 +6,10 @@ load_dotenv()
 
 class Config:
     # Flask configuration
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-1234567890")
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key or secret_key.strip() == "":
+        secret_key = "dev-secret-key-1234567890"
+    SECRET_KEY = secret_key
     
     # Database configuration
     db_url = os.getenv("DATABASE_URL", "sqlite:///database.db")
