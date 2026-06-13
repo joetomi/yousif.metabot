@@ -75,7 +75,7 @@ def test_gemini():
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         
         # Call a very quick generation to verify connection
         response = model.generate_content("Say 'Connection OK' in one word.")
