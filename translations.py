@@ -1,6 +1,6 @@
 translations = {
     'en': {
-        'brand': 'FB Automator',
+        'brand': 'Yousif Bot',
         'dashboard': 'Dashboard',
         'posts': 'Posts Manager',
         'settings': 'Settings',
@@ -102,7 +102,7 @@ translations = {
         'last_checked': 'Last Checked'
     },
     'ar': {
-        'brand': 'أوتوماتور فيسبوك',
+        'brand': 'يوسف بوت',
         'dashboard': 'لوحة التحكم',
         'posts': 'إدارة المنشورات',
         'settings': 'الإعدادات',

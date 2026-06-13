@@ -16,6 +16,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <!-- Custom Glassmorphism Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+    
+    <!-- Open Graph / Facebook / WhatsApp Link Preview -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="يوسف بوت - أسرع مجيب آلي لفيسبوك وماسنجر">
+    <meta property="og:description" content="منصة يوسف بوت للرد التلقائي الذكي على تعليقات صفحتك وإرسال رسائل خاصة فورية لزبائنك باستخدام الذكاء الاصطناعي.">
+    <meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='logo.png') }}">
+    
+    <!-- Twitter Preview -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ request.url }}">
+    <meta property="twitter:title" content="يوسف بوت - أسرع مجيب آلي لفيسبوك وماسنجر">
+    <meta property="twitter:description" content="منصة يوسف بوت للرد التلقائي الذكي على تعليقات صفحتك وإرسال رسائل خاصة فورية لزبائنك باستخدام الذكاء الاصطناعي.">
+    <meta property="twitter:image" content="{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='logo.png') }}">
+    
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -23,8 +41,9 @@
     {% if session.get('admin_logged_in') %}
     <!-- Sidebar Navigation -->
     <div class="sidebar">
-        <div class="brand">
-            <i class="fa-solid fa-robot me-2"></i> {{ t.brand }}
+        <div class="brand d-flex align-items-center p-3">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="rounded-circle me-2" style="width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.2);">
+            <span>{{ t.brand }}</span>
         </div>
         <ul class="sidebar-menu">
             <li class="{% if request.path == '/dashboard' or request.path == '/' %}active{% endif %}">
