@@ -20,8 +20,8 @@ class Config:
     
     # Webhook defaults
     DEFAULT_VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "my_verify_token_123")
-    DEFAULT_APP_ID = os.getenv("APP_ID", "1551224679018427")
-    DEFAULT_APP_SECRET = os.getenv("APP_SECRET", "")
+    DEFAULT_APP_ID = os.getenv("APP_ID", "1551224673018427")
+    DEFAULT_APP_SECRET = os.getenv("APP_SECRET", "d6aaee78477460221f880b3e328dca25")
     DEFAULT_PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "")
     DEFAULT_PAGE_ID = os.getenv("PAGE_ID", "")
     DEFAULT_TUNNEL_URL = os.getenv("TUNNEL_URL", "https://ready-otters-happen.loca.lt")

@@ -45,7 +45,9 @@ def create_app():
         return dict(
             lang=lang,
             t=translations[lang],
-            datetime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            datetime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+            page_name=Setting.get("page_name", ""),
+            page_id=Setting.get("page_id", "")
         )
 
     # Server-side inactivity timeout (1 minute)
@@ -83,13 +85,11 @@ def create_app():
             print("Seeded default administrator: Username: 'admin', Password: 'admin'")
 
         # 2. Seed Default Settings from environment (config.py defaults)
-        app_id_db = Setting.get("app_id")
-        if not app_id_db or app_id_db.strip() == "":
-            Setting.set("app_id", Config.DEFAULT_APP_ID)
+        Setting.set("app_id", Config.DEFAULT_APP_ID)
+        Setting.set("app_secret", Config.DEFAULT_APP_SECRET)
+        
         if not Setting.get("page_access_token"):
             Setting.set("page_access_token", Config.DEFAULT_PAGE_ACCESS_TOKEN)
-        if not Setting.get("app_secret"):
-            Setting.set("app_secret", Config.DEFAULT_APP_SECRET)
         if not Setting.get("verify_token"):
             Setting.set("verify_token", Config.DEFAULT_VERIFY_TOKEN)
         if not Setting.get("page_id"):
@@ -100,8 +100,14 @@ def create_app():
             Setting.set("anti_spam_mode", "every_comment")
         if not Setting.get("gemini_api_key"):
             Setting.set("gemini_api_key", Config.DEFAULT_GEMINI_API_KEY)
-        if not Setting.get("gemini_enabled"):
-            Setting.set("gemini_enabled", "false")
+            
+        # Enable Gemini automatically if API key is provided
+        if Config.DEFAULT_GEMINI_API_KEY:
+            Setting.set("gemini_enabled", "true")
+        else:
+            if not Setting.get("gemini_enabled"):
+                Setting.set("gemini_enabled", "false")
+                
         if not Setting.get("gemini_system_instruction"):
             Setting.set("gemini_system_instruction", Config.DEFAULT_GEMINI_SYSTEM_INSTRUCTION)
 
