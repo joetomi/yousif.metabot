@@ -72,7 +72,7 @@ class FacebookApiService:
         endpoint = f"{BASE_URL}/{self.page_id}/subscribed_apps"
         params = {
             "access_token": self.token,
-            "subscribed_fields": "feed"
+            "subscribed_fields": "feed,messages"
         }
         
         try:
