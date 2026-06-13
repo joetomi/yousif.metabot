@@ -26,21 +26,33 @@
                     <i class="fa-solid fa-user-plus text-info me-2"></i> إضافة عميل جديد
                 </h5>
                 
-                <form action="{{ url_for('developer.add_user') }}" method="POST">
+                <form action="{{ url_for('developer.add_user') }}" method="POST" id="add-user-form">
                     <div class="mb-3">
                         <label for="username" class="form-label text-white font-weight-bold small">اسم العميل (Username)</label>
-                        <input type="text" class="form-control bg-dark text-white border-secondary" id="username" name="username" placeholder="مثال: client1" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-dark text-white border-secondary text-end" id="username" name="username" placeholder="مثال: client1" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required autocomplete="off">
+                            <span class="input-group-text bg-dark border-secondary text-secondary" id="username-icon-container" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important; min-width: 40px; justify-content: center;">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                        </div>
+                        <div id="username-feedback" class="form-text mt-1 small text-danger" style="display: none;"></div>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label text-white font-weight-bold small">كلمة المرور</label>
-                        <input type="password" class="form-control bg-dark text-white border-secondary" id="password" name="password" placeholder="••••••••" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                        <input type="password" class="form-control bg-dark text-white border-secondary text-end" id="password" name="password" placeholder="••••••••" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                        <div id="password-feedback" class="form-text mt-1 small text-danger" style="display: none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label text-white font-weight-bold small">تأكيد كلمة المرور</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary text-end" id="password_confirm" name="password_confirm" placeholder="••••••••" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                        <div id="password-confirm-feedback" class="form-text mt-1 small text-danger" style="display: none;"></div>
                     </div>
                     <div class="mb-4">
                         <label for="subscription_expires_at" class="form-label text-white font-weight-bold small">تاريخ انتهاء الاشتراك</label>
-                        <input type="date" class="form-control bg-dark text-white border-secondary" id="subscription_expires_at" name="subscription_expires_at" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                        <input type="date" class="form-control bg-dark text-white border-secondary text-end" id="subscription_expires_at" name="subscription_expires_at" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
                         <div class="form-text text-secondary mt-1 small">اتركه فارغاً للاشتراك غير المحدود.</div>
                     </div>
-                    <button type="submit" class="btn btn-emerald w-100 py-2">
+                    <button type="submit" class="btn btn-emerald w-100 py-2" id="submit-btn">
                         <i class="fa-solid fa-check me-2"></i> إضافة العميل
                     </button>
                 </form>
@@ -201,4 +213,120 @@
     </div>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('username');
+    const usernameIconContainer = document.getElementById('username-icon-container');
+    const usernameFeedback = document.getElementById('username-feedback');
+    
+    const passwordInput = document.getElementById('password');
+    const passwordFeedback = document.getElementById('password-feedback');
+    
+    const passwordConfirmInput = document.getElementById('password_confirm');
+    const passwordConfirmFeedback = document.getElementById('password-confirm-feedback');
+    
+    const submitBtn = document.getElementById('submit-btn');
+    
+    let isUsernameValid = false;
+    let isPasswordValid = false;
+    let isPasswordConfirmValid = false;
+    
+    function validateForm() {
+        const usernameVal = usernameInput.value.trim();
+        const passwordVal = passwordInput.value;
+        const confirmVal = passwordConfirmInput.value;
+        
+        // 1. Username status
+        if (usernameVal === "") {
+            isUsernameValid = false;
+            usernameIconContainer.innerHTML = '<i class="fa-solid fa-user"></i>';
+            usernameFeedback.style.display = "none";
+        }
+        
+        // 2. Password validation (length >= 6)
+        if (passwordVal === "") {
+            isPasswordValid = false;
+            passwordFeedback.style.display = "none";
+        } else if (passwordVal.length < 6) {
+            isPasswordValid = false;
+            passwordFeedback.innerText = "الرمز لا يستوفي الشروط (يجب أن يكون 6 أحرف أو أرقام على الأقل)";
+            passwordFeedback.style.display = "block";
+            passwordFeedback.className = "form-text mt-1 small text-danger";
+        } else {
+            isPasswordValid = true;
+            passwordFeedback.innerText = "رمز المرور مستوفي الشروط";
+            passwordFeedback.style.display = "block";
+            passwordFeedback.className = "form-text mt-1 small text-success";
+        }
+        
+        // 3. Password match confirmation
+        if (confirmVal === "") {
+            isPasswordConfirmValid = false;
+            passwordConfirmFeedback.style.display = "none";
+        } else if (confirmVal !== passwordVal) {
+            isPasswordConfirmValid = false;
+            passwordConfirmFeedback.innerText = "كلمة المرور غير متطابقة";
+            passwordConfirmFeedback.style.display = "block";
+            passwordConfirmFeedback.className = "form-text mt-1 small text-danger";
+        } else {
+            isPasswordConfirmValid = true;
+            passwordConfirmFeedback.innerText = "كلمة المرور متطابقة";
+            passwordConfirmFeedback.style.display = "block";
+            passwordConfirmFeedback.className = "form-text mt-1 small text-success";
+        }
+        
+        // Toggle submit button
+        submitBtn.disabled = !(isUsernameValid && isPasswordValid && isPasswordConfirmValid);
+    }
+    
+    // Check username availability in real-time with 300ms debounce
+    let checkTimeout;
+    usernameInput.addEventListener('input', function() {
+        clearTimeout(checkTimeout);
+        const username = usernameInput.value.trim();
+        
+        if (username === "") {
+            isUsernameValid = false;
+            usernameIconContainer.innerHTML = '<i class="fa-solid fa-user"></i>';
+            usernameFeedback.style.display = "none";
+            validateForm();
+            return;
+        }
+        
+        // Show indicator loading
+        usernameIconContainer.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 14px; height: 14px;"></span>';
+        
+        checkTimeout = setTimeout(() => {
+            fetch(`/developer/users/check-username?username=${encodeURIComponent(username)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        isUsernameValid = false;
+                        usernameIconContainer.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger"></i>';
+                        usernameFeedback.innerText = "اسم المستخدم موجود بالفعل";
+                        usernameFeedback.style.display = "block";
+                    } else {
+                        isUsernameValid = true;
+                        usernameIconContainer.innerHTML = '<i class="fa-solid fa-circle-check text-success"></i>';
+                        usernameFeedback.style.display = "none";
+                    }
+                    validateForm();
+                })
+                .catch(err => {
+                    console.error("Error checking username:", err);
+                    usernameIconContainer.innerHTML = '<i class="fa-solid fa-user"></i>';
+                });
+        }, 300);
+    });
+    
+    passwordInput.addEventListener('input', validateForm);
+    passwordConfirmInput.addEventListener('input', validateForm);
+    
+    // Initial state
+    validateForm();
+});
+</script>
 {% endblock %}

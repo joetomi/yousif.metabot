@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, jsonify
 from routes.auth import developer_required
 from models import db, Admin, Setting
 from datetime import datetime
@@ -45,23 +45,42 @@ def list_users():
         
     return render_template('developer_users.html', users=user_data)
 
+@developer_bp.route('/developer/users/check-username', methods=['GET'])
+@developer_required
+def check_username():
+    username = request.args.get('username', '').strip()
+    if not username:
+        return jsonify({"exists": False})
+    
+    exists = Admin.query.filter_by(username=username).first() is not None
+    return jsonify({"exists": exists})
+
 @developer_bp.route('/developer/users/add', methods=['POST'])
 @developer_required
 def add_user():
     username = request.form.get('username', '').strip()
     password = request.form.get('password', '').strip()
+    password_confirm = request.form.get('password_confirm', '').strip()
     # Role is always 'user' (clients only, cannot add developers)
     role = 'user'
     expiry_str = request.form.get('subscription_expires_at', '').strip()
     
-    if not username or not password:
-        flash("Username and Password are required.", "danger")
+    if not username or not password or not password_confirm:
+        flash("جميع الحقول مطلوبة.", "danger")
+        return redirect(url_for('developer.list_users'))
+        
+    if len(password) < 6:
+        flash("الرمز لا يستوفي الشروط (يجب أن يكون 6 أحرف أو أرقام على الأقل).", "danger")
+        return redirect(url_for('developer.list_users'))
+        
+    if password != password_confirm:
+        flash("كلمة المرور غير متطابقة.", "danger")
         return redirect(url_for('developer.list_users'))
         
     # Check if username exists
     existing = Admin.query.filter_by(username=username).first()
     if existing:
-        flash(f"Username '{username}' already exists.", "warning")
+        flash("اسم المستخدم موجود بالفعل.", "warning")
         return redirect(url_for('developer.list_users'))
         
     expiry_dt = None

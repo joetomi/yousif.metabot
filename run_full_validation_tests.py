@@ -603,6 +603,7 @@ class FacebookBotTestCase(unittest.TestCase):
         resp = self.client.post('/developer/users/add', data=dict(
             username='new_client',
             password='newpassword',
+            password_confirm='newpassword',
             subscription_expires_at='2026-12-31'
         ), follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
@@ -760,6 +761,67 @@ class FacebookBotTestCase(unittest.TestCase):
         with self.app.app_context():
             setting_obj = Setting.query.filter_by(key="page_id", user_id=client_b_id).first()
             self.assertIsNone(setting_obj)
+
+    def test_check_username_api(self):
+        """Verify username check API endpoint for developers."""
+        # Seed test user
+        with self.app.app_context():
+            dev = Admin(username='dev_check_user', role='developer')
+            dev.set_password('pass')
+            db.session.add(dev)
+            
+            client = Admin(username='client_existing', role='user')
+            client.set_password('pass')
+            db.session.add(client)
+            db.session.commit()
+            
+        # 1. Login as developer
+        self.client.post('/login', data=dict(
+            username='dev_check_user',
+            password='pass'
+        ), follow_redirects=True)
+        
+        # 2. Check existing username
+        resp = self.client.get('/developer/users/check-username?username=client_existing')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['exists'])
+        
+        # 3. Check non-existing username
+        resp = self.client.get('/developer/users/check-username?username=non_existing_username')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertFalse(data['exists'])
+
+    def test_add_user_password_validations(self):
+        """Verify server-side password length and confirmation validations."""
+        with self.app.app_context():
+            dev = Admin(username='dev_pass_test', role='developer')
+            dev.set_password('pass')
+            db.session.add(dev)
+            db.session.commit()
+            
+        # Login
+        self.client.post('/login', data=dict(
+            username='dev_pass_test',
+            password='pass'
+        ), follow_redirects=True)
+        
+        # 1. Password < 6 characters
+        resp = self.client.post('/developer/users/add', data=dict(
+            username='new_client_short',
+            password='12345',
+            password_confirm='12345'
+        ), follow_redirects=True)
+        self.assertIn("الرمز لا يستوفي الشروط".encode('utf-8'), resp.data)
+            
+        # 2. Password mismatch
+        resp = self.client.post('/developer/users/add', data=dict(
+            username='new_client_mismatch',
+            password='password123',
+            password_confirm='password321'
+        ), follow_redirects=True)
+        self.assertIn("كلمة المرور غير متطابقة".encode('utf-8'), resp.data)
 
 if __name__ == "__main__":
     unittest.main()
