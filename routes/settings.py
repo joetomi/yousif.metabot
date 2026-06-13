@@ -18,8 +18,7 @@ def facebook_login():
         flash("Please configure Facebook App ID first.", "danger")
         return redirect(url_for('dashboard.index'))
         
-    tunnel_url = Setting.get("tunnel_url")
-    redirect_uri = f"{tunnel_url.rstrip('/')}/settings/facebook/callback"
+    redirect_uri = f"{request.url_root.rstrip('/')}/settings/facebook/callback"
     
     # Anti-forgery state token
     state = secrets.token_hex(16)
@@ -55,8 +54,7 @@ def facebook_callback():
     
     app_id = Setting.get("app_id")
     app_secret = Setting.get("app_secret")
-    tunnel_url = Setting.get("tunnel_url")
-    redirect_uri = f"{tunnel_url.rstrip('/')}/settings/facebook/callback"
+    redirect_uri = f"{request.url_root.rstrip('/')}/settings/facebook/callback"
     
     if not app_id or not app_secret:
         flash("App ID or App Secret configuration missing.", "danger")
