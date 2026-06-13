@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.logs_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row mb-4 align-items-center">
+        <div class="col-sm-6">
+            <h1 class="h3 mb-0 text-white font-weight-bold">{{ t.logs_title }}</h1>
+        </div>
+        <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+            <a href="{{ url_for('dashboard.export_logs', filter=current_filter) }}" class="btn btn-emerald">
+                <i class="fa-solid fa-file-csv me-2"></i> {{ t.export_csv }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('dashboard.view_logs', filter='all') }}" 
+                   class="btn {% if current_filter == 'all' %}btn-emerald{% else %}btn-glass{% endif %} btn-sm">
+                    {{ t.filter_all }}
+                </a>
+                <a href="{{ url_for('dashboard.view_logs', filter='success') }}" 
+                   class="btn {% if current_filter == 'success' %}btn-emerald{% else %}btn-glass{% endif %} btn-sm">
+                    {{ t.filter_success }}
+                </a>
+                <a href="{{ url_for('dashboard.view_logs', filter='failed') }}" 
+                   class="btn {% if current_filter == 'failed' %}btn-emerald{% else %}btn-glass{% endif %} btn-sm">
+                    {{ t.filter_failed }}
+                </a>
+                <a href="{{ url_for('dashboard.view_logs', filter='replies') }}" 
+                   class="btn {% if current_filter == 'replies' %}btn-emerald{% else %}btn-glass{% endif %} btn-sm">
+                    {{ t.filter_replies }}
+                </a>
+                <a href="{{ url_for('dashboard.view_logs', filter='messages') }}" 
+                   class="btn {% if current_filter == 'messages' %}btn-emerald{% else %}btn-glass{% endif %} btn-sm">
+                    {{ t.filter_messages }}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card glass-card">
+                <div class="table-responsive">
+                    <table class="table glass-table text-white mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ t.timestamp }}</th>
+                                <th>{{ t.event_type }}</th>
+                                <th>{{ t.user_id }}</th>
+                                <th>{{ t.comment_id }}</th>
+                                <th>{{ t.status_col }}</th>
+                                <th>{{ t.message_col }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if logs %}
+                                {% for log in logs %}
+                                <tr>
+                                    <td class="small">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <span class="badge bg-dark border border-secondary text-secondary">
+                                            {{ log.event_type }}
+                                        </span>
+                                    </td>
+                                    <td class="font-monospace small text-truncate" style="max-width: 120px;" title="{{ log.user_id }}">{{ log.user_id or '-' }}</td>
+                                    <td class="font-monospace small text-truncate" style="max-width: 120px;" title="{{ log.comment_id }}">{{ log.comment_id or '-' }}</td>
+                                    <td>
+                                        {% if log.status == 'SUCCESS' %}
+                                        <span class="badge badge-emerald">SUCCESS</span>
+                                        {% else %}
+                                        <span class="badge badge-red">FAILED</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="small" style="max-width: 380px; word-wrap: break-word;" title="{{ log.message }}">
+                                            {{ log.message }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-secondary py-4">No log records match this filter.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                {% if pagination and pagination.pages > 1 %}
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary">
+                    <span class="text-secondary small">
+                        Showing page {{ pagination.page }} of {{ pagination.pages }}
+                    </span>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm m-0">
+                            <!-- Prev page -->
+                            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                                <a class="page-link bg-dark border-secondary text-white" 
+                                   href="{{ url_for('dashboard.view_logs', filter=current_filter, page=pagination.prev_num) if pagination.has_prev else '#' }}">
+                                    {{ t.prev }}
+                                </a>
+                            </li>
+                            <!-- Next page -->
+                            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                                <a class="page-link bg-dark border-secondary text-white" 
+                                   href="{{ url_for('dashboard.view_logs', filter=current_filter, page=pagination.next_num) if pagination.has_next else '#' }}">
+                                    {{ t.next }}
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

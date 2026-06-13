@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.login_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="card glass-card shadow-lg border-0" style="max-width: 400px; width: 100%;">
+        <div class="card-body p-4 text-center">
+            
+            <div class="mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center bg-dark rounded-circle" 
+                     style="width: 70px; height: 70px; border: 2px solid var(--accent-color); box-shadow: 0 0 15px rgba(17, 202, 160, 0.4);">
+                    <i class="fa-solid fa-robot text-emerald" style="font-size: 2.2rem; color: var(--accent-color);"></i>
+                </div>
+            </div>
+            
+            <h3 class="mb-4 fw-bold text-white">{{ t.login_title }}</h3>
+            
+            <form action="{{ url_for('auth.login') }}" method="POST">
+                <div class="mb-3 text-start">
+                    <label for="username" class="form-label text-secondary fw-semibold">{{ t.username }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" class="form-control glass-input" id="username" name="username" required placeholder="{{ t.username }}">
+                    </div>
+                </div>
+                
+                <div class="mb-4 text-start">
+                    <label for="password" class="form-label text-secondary fw-semibold">{{ t.password }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input type="password" class="form-control glass-input" id="password" name="password" required placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-emerald w-100 py-2.5">
+                    <i class="fa-solid fa-right-to-bracket me-2"></i> {{ t.sign_in }}
+                </button>
+            </form>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('auth.toggle_lang') }}" class="text-info text-decoration-none fw-medium small">
+                    <i class="fa-solid fa-language me-1"></i> {{ t.lang_toggle }}
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

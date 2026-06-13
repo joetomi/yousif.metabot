@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.brand }} - {% block title %}{{ t.dashboard }}{% endblock %}</title>
+    <!-- Google Fonts Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS (RTL/LTR Conditional) -->
+    {% if lang == 'ar' %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    {% endif %}
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Glassmorphism Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    {% if session.get('admin_logged_in') %}
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="brand">
+            <i class="fa-solid fa-robot me-2"></i> {{ t.brand }}
+        </div>
+        <ul class="sidebar-menu">
+            <li class="{% if request.path == '/dashboard' or request.path == '/' %}active{% endif %}">
+                <a href="{{ url_for('dashboard.index') }}">
+                    <i class="fa-solid fa-chart-line"></i> {{ t.dashboard }}
+                </a>
+            </li>
+            <li class="{% if request.path == '/posts' %}active{% endif %}">
+                <a href="{{ url_for('posts.index') }}">
+                    <i class="fa-solid fa-newspaper"></i> {{ t.posts }}
+                </a>
+            </li>
+            <li class="{% if request.path == '/settings' %}active{% endif %}">
+                <a href="{{ url_for('settings.index') }}">
+                    <i class="fa-solid fa-gears"></i> {{ t.settings }}
+                </a>
+            </li>
+            <li class="{% if request.path == '/logs' %}active{% endif %}">
+                <a href="{{ url_for('dashboard.view_logs') }}">
+                    <i class="fa-solid fa-list-check"></i> {{ t.logs }}
+                </a>
+            </li>
+            <li class="{% if request.path == '/status' %}active{% endif %}">
+                <a href="{{ url_for('dashboard.status') }}">
+                    <i class="fa-solid fa-heart-pulse"></i> {{ t.status }}
+                </a>
+            </li>
+            <li class="mt-4">
+                <a href="{{ url_for('auth.toggle_lang') }}" class="text-info">
+                    <i class="fa-solid fa-language"></i> {{ t.lang_toggle }}
+                </a>
+            </li>
+            <li class="mt-2">
+                <a href="{{ url_for('auth.logout') }}" class="text-danger">
+                    <i class="fa-solid fa-right-from-bracket"></i> {{ t.logout }}
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Toggle button for mobile screens -->
+    <button class="sidebar-toggle" aria-label="Toggle Sidebar">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+    {% endif %}
+
+    <!-- Main Content Container -->
+    <div class="main-content {% if not session.get('admin_logged_in') %}m-0 w-100{% endif %}">
+        
+        <!-- Flash Message Handler -->
+        <div class="container-fluid p-0 mb-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' or category == 'danger' else 'info' if category == 'info' else 'success' }} alert-dismissible fade show border-0 text-white" 
+                             style="background: rgba({{ '239, 68, 68' if category == 'error' or category == 'danger' else '59, 130, 246' if category == 'info' else '17, 202, 160' }}, 0.7); backdrop-filter: blur(8px);" 
+                             role="alert">
+                            <i class="fa-solid {{ 'fa-circle-xmark' if category == 'error' or category == 'danger' else 'fa-circle-info' if category == 'info' else 'fa-circle-check' }} me-2"></i>
+                            <strong>{{ message }}</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- SocketIO Client Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Main JS Operations -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

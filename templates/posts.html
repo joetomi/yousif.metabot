@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.posts_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row mb-4 align-items-center">
+        <div class="col-sm-6">
+            <h1 class="h3 mb-0 text-white font-weight-bold">{{ t.posts_title }}</h1>
+        </div>
+        <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+            <button type="button" class="btn btn-emerald" id="refresh-posts-btn">
+                <i class="fa-solid fa-arrows-rotate me-2"></i> {{ t.refresh_posts_btn }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Posts Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card glass-card">
+                <div class="table-responsive">
+                    <table class="table glass-table text-white mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ t.post_id }}</th>
+                                <th>{{ t.post_msg }}</th>
+                                <th>{{ t.post_date }}</th>
+                                <th>{{ t.comment_count }}</th>
+                                <th>{{ t.monitored_col }}</th>
+                                <th>{{ t.actions_col }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if posts %}
+                                {% for post in posts %}
+                                <tr id="post-row-{{ post.id }}">
+                                    <td class="font-monospace small" style="color: var(--accent-color);">{{ post.id }}</td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 320px;" title="{{ post.message }}">
+                                            {{ post.message or '[No Message text]' }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {{ post.created_time.strftime('%Y-%m-%d %H:%M') if post.created_time else 'N/A' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-dark border border-secondary text-secondary">
+                                            {{ post.comment_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="form-check form-switch m-0">
+                                            <input class="form-check-input monitor-switch" type="checkbox" role="switch" 
+                                                   data-post-id="{{ post.id }}" 
+                                                   {% if post.is_monitored %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-glass btn-sm py-1 px-2.5" 
+                                                data-bs-toggle="modal" data-bs-target="#templatesModal-{{ post.id }}">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> {{ t.configure_templates }}
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-secondary py-4">No posts found. Refresh to pull posts from Facebook.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals Container (Rendered outside the table structure for valid HTML & Bootstrap overlay compliance) -->
+{% if posts %}
+    {% for post in posts %}
+    <!-- Response Templates Configuration Modal -->
+    <div class="modal fade" id="templatesModal-{{ post.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(8px);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 text-white" style="background: rgba(30, 41, 59, 0.95); border: 1px solid var(--glass-border); border-radius: 14px; box-shadow: var(--card-shadow);">
+                
+                <!-- Modal Header -->
+                <div class="modal-header border-bottom border-secondary p-3">
+                    <h5 class="modal-title fw-bold" style="color: var(--accent-color);">
+                        <i class="fa-solid fa-message me-2"></i> {{ t.configure_templates }}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <!-- Modal Form -->
+                <form action="{{ url_for('posts.update_templates', post_id=post.id) }}" method="POST">
+                    <div class="modal-body p-4">
+                        
+                        <!-- Snippet Context -->
+                        <div class="p-3 mb-4 rounded" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border);">
+                            <label class="text-secondary small fw-bold mb-1 d-block">POST MESSAGE SNIPPET</label>
+                            <span class="small">{{ post.message or '[No text]' }}</span>
+                        </div>
+
+                        <!-- Public Reply Template -->
+                        <div class="mb-3">
+                            <label for="default_reply-{{ post.id }}" class="form-label text-secondary fw-semibold">{{ t.public_reply_lbl }}</label>
+                            <textarea class="form-control glass-input" id="default_reply-{{ post.id }}" name="default_reply" rows="3" required placeholder="Thank you for commenting! Details sent to inbox.">{{ post.default_reply }}</textarea>
+                        </div>
+
+                        <!-- Private Messenger Template -->
+                        <div class="mb-3">
+                            <label for="private_message-{{ post.id }}" class="form-label text-secondary fw-semibold">{{ t.private_msg_lbl }}</label>
+                            <textarea class="form-control glass-input" id="private_message-{{ post.id }}" name="private_message" rows="4" required placeholder="Hello {name}, thanks for reaching out. Here details:">{{ post.private_message }}</textarea>
+                        </div>
+
+                        <!-- Variables Hints -->
+                        <div class="alert alert-dark border-0 p-2.5 rounded mb-0 mt-3" style="background: rgba(17, 202, 160, 0.08);">
+                            <span class="text-success small fw-semibold">
+                                <i class="fa-solid fa-circle-info me-1"></i> {{ t.vars_hint }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-top border-secondary p-3">
+                        <button type="button" class="btn btn-glass" data-bs-dismiss="modal">{{ t.close_btn }}</button>
+                        <button type="submit" class="btn btn-emerald">{{ t.save_templates }}</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,153 @@
+from flask import Blueprint, request, Response, current_app, jsonify
+import hmac
+import hashlib
+import json
+from datetime import datetime
+from models import db, Setting, WebhookLog
+from services.scheduler import scheduler
+from services.comment_processor import process_comment_job, log_activity
+
+webhook_bp = Blueprint('webhook', __name__)
+
+def verify_signature(payload_bytes, signature_header, secret):
+    """Verifies that the webhook payload is signed with the App Secret."""
+    if not signature_header:
+        return False
+    if not signature_header.startswith("sha256="):
+        return False
+    if not secret:
+        # If no secret is configured, deny verification for safety
+        return False
+        
+    expected_sig = signature_header.split("sha256=")[1]
+    computed_sig = hmac.new(
+        secret.encode('utf-8'),
+        payload_bytes,
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(computed_sig, expected_sig)
+
+@webhook_bp.route('/webhook', methods=['GET'])
+def verify():
+    """Handles GET verification requests from Meta Developer Platform."""
+    verify_token = Setting.get("verify_token", "my_verify_token_123")
+    
+    mode = request.args.get('hub.mode')
+    token = request.args.get('hub.verify_token')
+    challenge = request.args.get('hub.challenge')
+    
+    if mode and token:
+        if mode == 'subscribe' and token == verify_token:
+            print("Webhook verified successfully by Meta!")
+            log_activity(
+                event_type="WEBHOOK",
+                status="SUCCESS",
+                message="Webhook verification challenge completed successfully."
+            )
+            return Response(challenge, status=200, mimetype="text/plain")
+        else:
+            log_activity(
+                event_type="WEBHOOK",
+                status="FAILED",
+                message="Webhook verification failed: Token mismatch."
+            )
+            return Response("Forbidden", status=403)
+            
+    return Response("Bad Request", status=400)
+
+@webhook_bp.route('/webhook', methods=['POST'])
+def handle_event():
+    """Handles incoming POST events from Meta Graph API Webhooks."""
+    app_secret = Setting.get("app_secret")
+    signature = request.headers.get('X-Hub-Signature-256')
+    raw_payload = request.data
+    
+    # 1. Validate X-Hub-Signature-256
+    if app_secret:
+        if not verify_signature(raw_payload, signature, app_secret):
+            # Log rejected payload
+            log_activity(
+                event_type="WEBHOOK",
+                status="FAILED",
+                message="Incoming webhook request signature verification failed. App Secret mismatch."
+            )
+            return jsonify({"status": "error", "message": "Invalid signature"}), 403
+            
+    # Parse Webhook Log
+    log_status = "SUCCESS"
+    log_error = None
+    
+    try:
+        data = request.get_json()
+    except Exception as e:
+        log_status = "FAILED"
+        log_error = f"Invalid JSON payload: {str(e)}"
+        
+        # Save raw log
+        log_db = WebhookLog(
+            payload=raw_payload.decode('utf-8', errors='ignore'),
+            status=log_status,
+            error_message=log_error
+        )
+        db.session.add(log_db)
+        db.session.commit()
+        return jsonify({"status": "error", "message": "Invalid JSON"}), 400
+
+    # Save to WebhookLog
+    log_db = WebhookLog(
+        payload=json.dumps(data),
+        status=log_status,
+        error_message=log_error
+    )
+    db.session.add(log_db)
+    db.session.commit()
+
+    # 2. Check for feed changes (new comments)
+    if data.get("object") == "page":
+        for entry in data.get("entry", []):
+            for change in entry.get("changes", []):
+                if change.get("field") == "feed":
+                    val = change.get("value", {})
+                    item = val.get("item")
+                    verb = val.get("verb")
+                    
+                    # We process comments and updates (e.g. addition of comments)
+                    # "feed, comments, post updates"
+                    if item == "comment" and verb == "add":
+                        comment_id = val.get("comment_id")
+                        post_id = val.get("post_id")
+                        sender_id = val.get("from", {}).get("id")
+                        sender_name = val.get("from", {}).get("name")
+                        message = val.get("message", "")
+                        created_time_int = val.get("created_time")
+                        
+                        created_time_str = None
+                        if created_time_int:
+                            created_time_str = datetime.utcfromtimestamp(created_time_int).strftime("%Y-%m-%dT%H:%M:%S+0000")
+                            
+                        # Package comment details
+                        comment_data = {
+                            "comment_id": comment_id,
+                            "post_id": post_id,
+                            "user_id": sender_id,
+                            "username": sender_name,
+                            "message": message,
+                            "created_time": created_time_str
+                        }
+                        
+                        # Enqueue immediate processing task using APScheduler
+                        app_ref = current_app._get_current_object()
+                        scheduler.add_job(
+                            func=process_comment_job,
+                            trigger='date',  # Run immediately once
+                            args=[app_ref, comment_data],
+                            id=f"process_comment_{comment_id}",
+                            name=f"Process comment {comment_id} from {sender_name}",
+                            replace_existing=True
+                        )
+                        
+                        print(f"Enqueued comment {comment_id} for processing.")
+
+    # 3. Return HTTP 200 immediately
+    return jsonify({"status": "received"}), 200

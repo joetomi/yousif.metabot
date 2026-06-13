@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.status }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0" id="status-indicators">
+    <div class="row mb-4 align-items-center">
+        <div class="col-sm-8">
+            <h1 class="h3 mb-0 text-white font-weight-bold">{{ t.status_title }}</h1>
+            <p class="text-secondary small mb-0 mt-1"><i class="fa-solid fa-circle-notch fa-spin text-success me-1"></i> {{ t.health_refresh_msg }}</p>
+        </div>
+        <div class="col-sm-4 text-sm-end mt-2 mt-sm-0">
+            <span class="text-secondary small fw-medium">
+                {{ t.last_checked }}: <span id="status-last-updated" class="font-monospace text-white">-</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Health indicators Grid -->
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        <!-- 1. Database Connection Card -->
+        <div class="col">
+            <div class="card glass-card h-100" id="db-status" style="transition: border-color 0.4s ease;">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title fw-bold text-white mb-0">
+                            <i class="fa-solid fa-database text-success me-2"></i> {{ t.db_health }}
+                        </h5>
+                        <span class="badge bg-dark border border-secondary text-secondary">LOADING</span>
+                    </div>
+                    <p class="text-secondary small mb-0 card-text" id="db-details">Checking database connection...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Meta Graph API connection -->
+        <div class="col">
+            <div class="card glass-card h-100" id="api-status" style="transition: border-color 0.4s ease;">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title fw-bold text-white mb-0">
+                            <i class="fa-solid fa-circle-nodes text-primary me-2"></i> {{ t.api_health }}
+                        </h5>
+                        <span class="badge bg-dark border border-secondary text-secondary">LOADING</span>
+                    </div>
+                    <p class="text-secondary small mb-0 card-text" id="api-details">Verifying API authorization status...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Tunnel URL Health -->
+        <div class="col">
+            <div class="card glass-card h-100" id="tunnel-status" style="transition: border-color 0.4s ease;">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title fw-bold text-white mb-0">
+                            <i class="fa-solid fa-link text-warning me-2"></i> {{ t.tunnel_health }}
+                        </h5>
+                        <span class="badge bg-dark border border-secondary text-secondary">LOADING</span>
+                    </div>
+                    <p class="text-secondary small mb-0 card-text" id="tunnel-details">Resolving localtunnel / ngrok state...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Webhook Subscription Status -->
+        <div class="col">
+            <div class="card glass-card h-100" id="webhook-status" style="transition: border-color 0.4s ease;">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title fw-bold text-white mb-0">
+                            <i class="fa-solid fa-bell text-danger me-2"></i> {{ t.webhook_health }}
+                        </h5>
+                        <span class="badge bg-dark border border-secondary text-secondary">LOADING</span>
+                    </div>
+                    <p class="text-secondary small mb-0 card-text" id="webhook-details">Checking Verify Token parameter...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

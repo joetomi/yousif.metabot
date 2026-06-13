@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.dashboard }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <h1 class="h3 mb-0 text-white font-weight-bold">{{ t.dashboard }}</h1>
+            <span class="text-secondary small">{{ t.last_checked }}: <span id="dashboard-time">{{ datetime }}</span></span>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-5 g-4 mb-5">
+        <!-- Monitored Posts -->
+        <div class="col">
+            <div class="card glass-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">{{ t.monitored_posts }}</div>
+                        <div class="metric-value" id="total-monitored-val">{{ total_monitored }}</div>
+                    </div>
+                    <div class="metric-icon"><i class="fa-solid fa-newspaper"></i></div>
+                </div>
+            </div>
+        </div>
+        <!-- Comments Received -->
+        <div class="col">
+            <div class="card glass-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">{{ t.comments_received }}</div>
+                        <div class="metric-value" id="total-comments-val">{{ total_comments }}</div>
+                    </div>
+                    <div class="metric-icon"><i class="fa-solid fa-comments"></i></div>
+                </div>
+            </div>
+        </div>
+        <!-- Auto Replies Sent -->
+        <div class="col">
+            <div class="card glass-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">{{ t.replies_sent }}</div>
+                        <div class="metric-value" id="total-replies-val">{{ total_replies }}</div>
+                    </div>
+                    <div class="metric-icon"><i class="fa-solid fa-reply"></i></div>
+                </div>
+            </div>
+        </div>
+        <!-- Private Messages Sent -->
+        <div class="col">
+            <div class="card glass-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">{{ t.messages_sent }}</div>
+                        <div class="metric-value" id="total-messages-val">{{ total_messages }}</div>
+                    </div>
+                    <div class="metric-icon"><i class="fa-solid fa-envelope"></i></div>
+                </div>
+            </div>
+        </div>
+        <!-- Webhook Log Count -->
+        <div class="col">
+            <div class="card glass-card h-100">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">{{ t.webhook_events }}</div>
+                        <div class="metric-value" id="total-webhooks-val">{{ total_webhooks }}</div>
+                    </div>
+                    <div class="metric-icon"><i class="fa-solid fa-webhook"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-5">
+        <div class="col-lg-4 mb-4 mb-lg-0">
+            <div class="card glass-card h-100">
+                <h5 class="card-title-accent text-white">{{ t.chart_comments }}</h5>
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="commentsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4 mb-lg-0">
+            <div class="card glass-card h-100">
+                <h5 class="card-title-accent text-white">{{ t.chart_replies }}</h5>
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="repliesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card glass-card h-100">
+                <h5 class="card-title-accent text-white">{{ t.chart_messages }}</h5>
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="messagesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card glass-card">
+                <h5 class="card-title-accent text-white mb-4">{{ t.recent_activity }}</h5>
+                
+                <div class="table-responsive">
+                    <table class="table glass-table text-white mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ t.timestamp }}</th>
+                                <th>{{ t.event_type }}</th>
+                                <th>{{ t.status_col }}</th>
+                                <th>{{ t.message_col }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_activities %}
+                                {% for activity in recent_activities %}
+                                <tr>
+                                    <td>{{ activity.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <span class="badge bg-dark border border-secondary text-secondary">
+                                            {{ activity.event_type }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if activity.status == 'SUCCESS' %}
+                                        <span class="badge badge-emerald">SUCCESS</span>
+                                        {% else %}
+                                        <span class="badge badge-red">FAILED</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ activity.message }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-secondary py-4">{{ t.no_activity }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Current local system time
+    document.getElementById("dashboard-time").innerText = new Date().toLocaleTimeString();
+
+    // Chart Options & Defaults
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: '#94a3b8' }
+            },
+            y: {
+                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                ticks: { color: '#94a3b8', stepSize: 1 }
+            }
+        }
+    };
+
+    const labels = {{ chart_data.labels | tojson }};
+
+    // 1. Comments Chart
+    const ctxComments = document.getElementById('commentsChart').getContext('2d');
+    new Chart(ctxComments, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: {{ chart_data.comments | tojson }},
+                borderColor: '#11CAA0',
+                backgroundColor: 'rgba(17, 202, 160, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: chartOptions
+    });
+
+    // 2. Replies Chart
+    const ctxReplies = document.getElementById('repliesChart').getContext('2d');
+    new Chart(ctxReplies, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: {{ chart_data.replies | tojson }},
+                backgroundColor: 'rgba(17, 202, 160, 0.85)',
+                borderRadius: 5,
+                borderWidth: 0
+            }]
+        },
+        options: chartOptions
+    });
+
+    // 3. Messages Chart
+    const ctxMessages = document.getElementById('messagesChart').getContext('2d');
+    new Chart(ctxMessages, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: {{ chart_data.messages | tojson }},
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: chartOptions
+    });
+});
+</script>
+{% endblock %}

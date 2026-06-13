@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: facebook_comment_bot
+    restart: always
+    ports:
+      - "5050:5050"
+    env_file:
+      - .env
+    environment:
+      # Direct SQLite inside container to persist inside the mounted /app/data volume
+      - DATABASE_URL=sqlite:///data/database.db
+    volumes:
+      # Mount local directory to container to persist database
+      - ./data:/app/data
