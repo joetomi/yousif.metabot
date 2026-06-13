@@ -92,18 +92,19 @@ def create_app():
         Setting.set("app_id", Config.DEFAULT_APP_ID)
         Setting.set("app_secret", Config.DEFAULT_APP_SECRET)
         
-        if not Setting.get("page_access_token"):
-            Setting.set("page_access_token", Config.DEFAULT_PAGE_ACCESS_TOKEN)
-        if not Setting.get("verify_token"):
-            Setting.set("verify_token", Config.DEFAULT_VERIFY_TOKEN)
-        if not Setting.get("page_id"):
-            Setting.set("page_id", Config.DEFAULT_PAGE_ID)
-        if not Setting.get("tunnel_url"):
-            Setting.set("tunnel_url", Config.DEFAULT_TUNNEL_URL)
+        def seed_setting(key, config_val):
+            val = Setting.get(key)
+            if not val or val.strip() == "" or "placeholder" in val.lower():
+                Setting.set(key, config_val)
+
+        seed_setting("page_access_token", Config.DEFAULT_PAGE_ACCESS_TOKEN)
+        seed_setting("verify_token", Config.DEFAULT_VERIFY_TOKEN)
+        seed_setting("page_id", Config.DEFAULT_PAGE_ID)
+        seed_setting("tunnel_url", Config.DEFAULT_TUNNEL_URL)
+        seed_setting("gemini_api_key", Config.DEFAULT_GEMINI_API_KEY)
+        
         if not Setting.get("anti_spam_mode"):
             Setting.set("anti_spam_mode", "every_comment")
-        if not Setting.get("gemini_api_key"):
-            Setting.set("gemini_api_key", Config.DEFAULT_GEMINI_API_KEY)
             
         # Enable Gemini automatically if API key is provided
         if Config.DEFAULT_GEMINI_API_KEY:
