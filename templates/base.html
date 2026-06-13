@@ -48,31 +48,38 @@
         
         <!-- Connection Status -->
         <div class="px-3 py-2 mb-3 border-bottom border-secondary" style="border-color: rgba(255,255,255,0.08) !important;">
-            {% if page_name and page_id %}
-            <div class="d-flex flex-column">
-                <div class="d-flex align-items-center mb-1 font-weight-bold small" style="color: #11caa0; font-size: 0.85em;">
-                    <span class="d-inline-block rounded-circle me-2" style="width: 8px; height: 8px; background-color: #11caa0; box-shadow: 0 0 8px #11caa0;"></span>
-                    {{ t.brand }} Connected
+            {% if not is_developer %}
+                {% if page_name and page_id %}
+                <div class="d-flex flex-column">
+                    <div class="d-flex align-items-center mb-1 font-weight-bold small" style="color: #11caa0; font-size: 0.85em;">
+                        <span class="d-inline-block rounded-circle me-2" style="width: 8px; height: 8px; background-color: #11caa0; box-shadow: 0 0 8px #11caa0;"></span>
+                        {{ t.brand }} Connected
+                    </div>
+                    <div class="text-white font-weight-bold text-truncate small" style="font-size: 0.9em; max-width: 170px;" title="{{ page_name }}">{{ page_name }}</div>
+                    <a href="{{ url_for('settings.facebook_login') }}" class="text-secondary small mt-1 hover-underline text-decoration-none fb-login-popup" style="font-size: 0.75em; color: rgba(255,255,255,0.4) !important;">
+                        <i class="fa-brands fa-facebook me-1"></i> Change Page
+                    </a>
                 </div>
-                <div class="text-white font-weight-bold text-truncate small" style="font-size: 0.9em; max-width: 170px;" title="{{ page_name }}">{{ page_name }}</div>
-                <a href="{{ url_for('settings.facebook_login') }}" class="text-secondary small mt-1 hover-underline text-decoration-none fb-login-popup" style="font-size: 0.75em; color: rgba(255,255,255,0.4) !important;">
-                    <i class="fa-brands fa-facebook me-1"></i> Change Page
-                </a>
-            </div>
+                {% else %}
+                <div class="d-flex flex-column">
+                    <div class="d-flex align-items-center mb-2 font-weight-bold small" style="color: #ef4444; font-size: 0.85em;">
+                        <span class="d-inline-block rounded-circle me-2" style="width: 8px; height: 8px; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
+                        Not Connected
+                    </div>
+                    <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center py-2 fb-login-popup" style="font-size: 0.8em; background: #1877f2; border: none; font-weight: 600;">
+                        <i class="fa-brands fa-facebook me-2"></i> {{ t.connect_fb_btn }}
+                    </a>
+                </div>
+                {% endif %}
             {% else %}
-            <div class="d-flex flex-column">
-                <div class="d-flex align-items-center mb-2 font-weight-bold small" style="color: #ef4444; font-size: 0.85em;">
-                    <span class="d-inline-block rounded-circle me-2" style="width: 8px; height: 8px; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
-                    Not Connected
+                <div class="text-secondary small font-weight-bold py-1" style="font-size: 0.85em; color: #3b82f6 !important;">
+                    <i class="fa-solid fa-user-shield text-info me-1"></i> {{ t.developer }}
                 </div>
-                <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center py-2 fb-login-popup" style="font-size: 0.8em; background: #1877f2; border: none; font-weight: 600;">
-                    <i class="fa-brands fa-facebook me-2"></i> {{ t.connect_fb_btn }}
-                </a>
-            </div>
             {% endif %}
         </div>
         
         <ul class="sidebar-menu">
+            {% if not is_developer %}
             <li class="{% if request.path == '/dashboard' or request.path == '/' %}active{% endif %}">
                 <a href="{{ url_for('dashboard.index') }}">
                     <i class="fa-solid fa-chart-line"></i> {{ t.dashboard }}
@@ -88,13 +95,15 @@
                     <i class="fa-brands fa-facebook-messenger"></i> {{ t.messenger_bot }}
                 </a>
             </li>
-            {% if is_developer %}
+            {% else %}
             <li class="{% if request.path.startswith('/developer') %}active{% endif %}">
                 <a href="{{ url_for('developer.list_users') }}">
                     <i class="fa-solid fa-users-gear text-info"></i> {{ t.users_management }}
                 </a>
             </li>
             {% endif %}
+            
+            {% if not is_developer %}
             <li class="{% if request.path == '/logs' %}active{% endif %}">
                 <a href="{{ url_for('dashboard.view_logs') }}">
                     <i class="fa-solid fa-list-check"></i> {{ t.logs }}
@@ -105,6 +114,8 @@
                     <i class="fa-solid fa-heart-pulse"></i> {{ t.status }}
                 </a>
             </li>
+            {% endif %}
+            
             <li class="mt-4">
                 <a href="{{ url_for('auth.toggle_lang') }}" class="text-info">
                     <i class="fa-solid fa-language"></i> {{ t.lang_toggle }}

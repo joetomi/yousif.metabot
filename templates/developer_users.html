@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ t.users_management }}{% endblock %}
+{% block title %}إدارة العملاء - لوحة التحكم للمطور{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -8,125 +8,128 @@
     <div class="glass-card p-4 mb-4 d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center">
             <div class="d-inline-flex align-items-center justify-content-center bg-primary rounded-circle me-3" style="width: 50px; height: 50px; background: rgba(59, 130, 246, 0.15) !important;">
-                <i class="fa-solid fa-users-gear text-primary fa-lg"></i>
+                <i class="fa-solid fa-user-shield text-primary fa-lg"></i>
             </div>
             <div>
-                <h1 class="h4 text-white font-weight-bold mb-1">{{ t.users_management }}</h1>
-                <p class="text-secondary mb-0 small">Manage customer accounts, roles, active status, and subscription durations.</p>
+                <h1 class="h4 text-white font-weight-bold mb-1">لوحة تحكم المطور</h1>
+                <p class="text-secondary mb-0 small">إدارة حسابات العملاء، تمديد الاشتراكات، وإدارة صلاحية الدخول للمنصة.</p>
             </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Add User Form -->
+        <!-- Sidebar Controls (Left Side) -->
         <div class="col-xl-4 col-lg-12 mb-4">
-            <div class="card glass-card p-4">
+            <!-- Add User Card -->
+            <div class="card glass-card p-4 mb-4">
                 <h5 class="text-white font-weight-bold mb-4 border-bottom border-secondary pb-2" style="border-color: rgba(255,255,255,0.08) !important;">
-                    <i class="fa-solid fa-user-plus text-info me-2"></i> {{ t.add_user }}
+                    <i class="fa-solid fa-user-plus text-info me-2"></i> إضافة عميل جديد
                 </h5>
                 
                 <form action="{{ url_for('developer.add_user') }}" method="POST">
                     <div class="mb-3">
-                        <label for="username" class="form-label text-white font-weight-bold small">{{ t.username }}</label>
-                        <input type="text" class="form-control bg-dark text-white border-secondary" id="username" name="username" placeholder="e.g. client1" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                        <label for="username" class="form-label text-white font-weight-bold small">اسم العميل (Username)</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" id="username" name="username" placeholder="مثال: client1" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
                     </div>
                     <div class="mb-3">
-                        <label for="password" class="form-label text-white font-weight-bold small">{{ t.password }}</label>
+                        <label for="password" class="form-label text-white font-weight-bold small">كلمة المرور</label>
                         <input type="password" class="form-control bg-dark text-white border-secondary" id="password" name="password" placeholder="••••••••" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="role" class="form-label text-white font-weight-bold small">{{ t.role }}</label>
-                        <select class="form-select bg-dark text-white border-secondary" id="role" name="role" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
-                            <option value="user" selected>{{ t.user }}</option>
-                            <option value="developer">{{ t.developer }}</option>
-                        </select>
-                    </div>
                     <div class="mb-4">
-                        <label for="subscription_expires_at" class="form-label text-white font-weight-bold small">{{ t.subscription_expiry }}</label>
+                        <label for="subscription_expires_at" class="form-label text-white font-weight-bold small">تاريخ انتهاء الاشتراك</label>
                         <input type="date" class="form-control bg-dark text-white border-secondary" id="subscription_expires_at" name="subscription_expires_at" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
-                        <div class="form-text text-secondary mt-1 small">Leave blank for unlimited subscription.</div>
+                        <div class="form-text text-secondary mt-1 small">اتركه فارغاً للاشتراك غير المحدود.</div>
                     </div>
                     <button type="submit" class="btn btn-emerald w-100 py-2">
-                        <i class="fa-solid fa-check me-2"></i> {{ t.add_user }}
+                        <i class="fa-solid fa-check me-2"></i> إضافة العميل
+                    </button>
+                </form>
+            </div>
+
+            <!-- Developer Account Management Card -->
+            <div class="card glass-card p-4">
+                <h5 class="text-white font-weight-bold mb-4 border-bottom border-secondary pb-2" style="border-color: rgba(255,255,255,0.08) !important;">
+                    <i class="fa-solid fa-key text-warning me-2"></i> إدارة حساب المطور
+                </h5>
+                
+                <form action="{{ url_for('developer.change_own_password') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-white font-weight-bold small">تغيير كلمة مرور المطور</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" name="new_password" placeholder="••••••••" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="fa-solid fa-lock me-2"></i> تحديث كلمة مرور المطور
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- Users List -->
+        <!-- Users List (Right Side) -->
         <div class="col-xl-8 col-lg-12 mb-4">
             <div class="card glass-card p-4">
                 <h5 class="text-white font-weight-bold mb-4 border-bottom border-secondary pb-2" style="border-color: rgba(255,255,255,0.08) !important;">
-                    <i class="fa-solid fa-users text-warning me-2"></i> {{ t.users_management }}
+                    <i class="fa-solid fa-users text-warning me-2"></i> قائمة العملاء المشتركين
                 </h5>
                 
                 <div class="table-responsive">
                     <table class="table table-dark table-hover border-secondary align-middle mb-0" style="--bs-table-bg: transparent; border-color: rgba(255,255,255,0.05);">
                         <thead>
                             <tr style="color: rgba(255,255,255,0.4); font-size: 0.9em;">
-                                <th scope="col">{{ t.username }}</th>
-                                <th scope="col">{{ t.role }}</th>
-                                <th scope="col">Connected Page</th>
-                                <th scope="col">{{ t.subscription_expiry }}</th>
-                                <th scope="col">{{ t.status }}</th>
-                                <th scope="col" class="text-end">{{ t.actions }}</th>
+                                <th scope="col">العميل</th>
+                                <th scope="col">الصفحة المتصلة</th>
+                                <th scope="col">تاريخ انتهاء الاشتراك</th>
+                                <th scope="col">الحالة</th>
+                                <th scope="col" class="text-end">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in users %}
                             <tr style="border-color: rgba(255,255,255,0.04);">
                                 <td class="text-white font-weight-bold">{{ item.user.username }}</td>
-                                <td>
-                                    {% if item.user.role == 'developer' %}
-                                    <span class="badge bg-info text-dark">{{ t.developer }}</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary text-white">{{ t.user }}</span>
-                                    {% endif %}
-                                </td>
                                 <td class="text-secondary small">{{ item.page_name }}</td>
                                 <td>
                                     {% if item.user.subscription_expires_at %}
                                         {% if item.is_expired %}
-                                        <span class="text-danger small font-weight-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> {{ item.user.subscription_expires_at.strftime('%Y-%m-%d') }} ({{ t.expired }})</span>
+                                        <span class="text-danger small font-weight-bold"><i class="fa-solid fa-circle-exclamation me-1"></i> {{ item.expiry_str }} (منتهي)</span>
                                         {% else %}
-                                        <span class="text-success small"><i class="fa-solid fa-calendar-check me-1"></i> {{ item.user.subscription_expires_at.strftime('%Y-%m-%d') }}</span>
+                                        <span class="text-success small"><i class="fa-solid fa-calendar-check me-1"></i> {{ item.expiry_str }}</span>
                                         {% endif %}
                                     {% else %}
-                                    <span class="text-secondary small"><i class="fa-solid fa-infinity me-1"></i> {{ t.unlimited }}</span>
+                                    <span class="text-secondary small"><i class="fa-solid fa-infinity me-1"></i> غير محدود</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if item.user.is_active %}
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="background: rgba(17, 202, 160, 0.1) !important; color: #11caa0 !important; border: 1px solid rgba(17, 202, 160, 0.2) !important;">
-                                        {{ t.active }}
+                                    <span class="badge" style="background: rgba(17, 202, 160, 0.1) !important; color: #11caa0 !important; border: 1px solid rgba(17, 202, 160, 0.2) !important;">
+                                        نشط
                                     </span>
                                     {% else %}
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="background: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.2) !important;">
-                                        {{ t.inactive }}
+                                    <span class="badge" style="background: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.2) !important;">
+                                        غير نشط
                                     </span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end text-nowrap">
                                     <!-- Toggle status -->
                                     <form action="{{ url_for('developer.toggle_status', user_id=item.user.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-outline-info p-1 px-2 border-0" title="{{ t.toggle_status }}" {% if item.user.username == 'admin' %}disabled{% endif %}>
+                                        <button type="submit" class="btn btn-sm btn-outline-info p-1 px-2 border-0" title="تغيير حالة النشاط">
                                             <i class="fa-solid fa-power-off"></i>
                                         </button>
                                     </form>
                                     
                                     <!-- Edit Expiry Trigger Button -->
-                                    <button class="btn btn-sm btn-outline-warning p-1 px-2 border-0" title="{{ t.extend_sub }}" data-bs-toggle="modal" data-bs-target="#extendModal{{ item.user.id }}">
+                                    <button class="btn btn-sm btn-outline-warning p-1 px-2 border-0" title="تعديل تاريخ الاشتراك" data-bs-toggle="modal" data-bs-target="#extendModal{{ item.user.id }}">
                                         <i class="fa-solid fa-clock"></i>
                                     </button>
                                     
                                     <!-- Edit Password Trigger Button -->
-                                    <button class="btn btn-sm btn-outline-secondary p-1 px-2 border-0" title="{{ t.change_password }}" data-bs-toggle="modal" data-bs-target="#passwordModal{{ item.user.id }}">
+                                    <button class="btn btn-sm btn-outline-secondary p-1 px-2 border-0" title="تغيير كلمة المرور" data-bs-toggle="modal" data-bs-target="#passwordModal{{ item.user.id }}">
                                         <i class="fa-solid fa-key"></i>
                                     </button>
                                     
                                     <!-- Delete -->
-                                    <form action="{{ url_for('developer.delete_user', user_id=item.user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ t.confirm_delete_user }}');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger p-1 px-2 border-0" title="{{ t.delete_user }}" {% if item.user.username == 'admin' %}disabled{% endif %}>
+                                    <form action="{{ url_for('developer.delete_user', user_id=item.user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا العميل نهائياً؟');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger p-1 px-2 border-0" title="حذف العميل">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </form>
@@ -134,22 +137,22 @@
                                     <!-- Extend Expiry Modal -->
                                     <div class="modal fade" id="extendModal{{ item.user.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(10px);">
                                         <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: left;">
+                                            <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: right; direction: rtl;">
                                                 <div class="modal-header border-secondary">
-                                                    <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-clock text-warning me-2"></i> {{ t.extend_sub }} ({{ item.user.username }})</h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-clock text-warning me-2"></i> تمديد الاشتراك للعميل ({{ item.user.username }})</h5>
+                                                    <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
                                                 <form action="{{ url_for('developer.extend_subscription', user_id=item.user.id) }}" method="POST">
                                                     <div class="modal-body">
                                                         <div class="mb-3">
-                                                            <label class="form-label text-white font-weight-bold small">{{ t.subscription_expiry }}</label>
-                                                            <input type="date" class="form-control bg-dark text-white border-secondary" name="subscription_expires_at" value="{{ item.user.subscription_expires_at.strftime('%Y-%m-%d') if item.user.subscription_expires_at else '' }}" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
-                                                            <div class="form-text text-secondary mt-1 small">Leave blank to make it unlimited.</div>
+                                                            <label class="form-label text-white font-weight-bold small">تاريخ انتهاء الاشتراك الجديد</label>
+                                                            <input type="date" class="form-control bg-dark text-white border-secondary text-end" name="subscription_expires_at" value="{{ item.expiry_str }}" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                                                            <div class="form-text text-secondary mt-1 small">اتركه فارغاً لجعله غير محدود.</div>
                                                         </div>
                                                     </div>
-                                                    <div class="modal-footer border-secondary">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t.close_btn }}</button>
-                                                        <button type="submit" class="btn btn-emerald">{{ t.save_settings }}</button>
+                                                    <div class="modal-footer border-secondary justify-content-start">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                                        <button type="submit" class="btn btn-emerald">حفظ التعديلات</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -159,21 +162,21 @@
                                     <!-- Password Modal -->
                                     <div class="modal fade" id="passwordModal{{ item.user.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(10px);">
                                         <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: left;">
+                                            <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: right; direction: rtl;">
                                                 <div class="modal-header border-secondary">
-                                                    <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-key text-info me-2"></i> {{ t.change_password }} ({{ item.user.username }})</h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-key text-info me-2"></i> تغيير كلمة المرور للعميل ({{ item.user.username }})</h5>
+                                                    <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
                                                 <form action="{{ url_for('developer.change_password', user_id=item.user.id) }}" method="POST">
                                                     <div class="modal-body">
                                                         <div class="mb-3">
-                                                            <label class="form-label text-white font-weight-bold small">New Password</label>
-                                                            <input type="password" class="form-control bg-dark text-white border-secondary" name="new_password" placeholder="Enter new password" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                                                            <label class="form-label text-white font-weight-bold small">كلمة المرور الجديدة</label>
+                                                            <input type="password" class="form-control bg-dark text-white border-secondary text-end" name="new_password" placeholder="أدخل كلمة المرور الجديدة" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
                                                         </div>
                                                     </div>
-                                                    <div class="modal-footer border-secondary">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t.close_btn }}</button>
-                                                        <button type="submit" class="btn btn-emerald">{{ t.change_password }}</button>
+                                                    <div class="modal-footer border-secondary justify-content-start">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                                        <button type="submit" class="btn btn-emerald">تحديث كلمة المرور</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -183,9 +186,9 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="6" class="text-center text-secondary py-4 small">
+                                <td colspan="5" class="text-center text-secondary py-4 small">
                                     <i class="fa-regular fa-folder-open d-block mb-2 fa-2x"></i>
-                                    {{ t.no_users }}
+                                    لا يوجد عملاء مسجلين حالياً.
                                 </td>
                             </tr>
                             {% endfor %}

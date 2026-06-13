@@ -13,8 +13,12 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/dashboard')
 @admin_required
 def index():
-    from flask import session
+    from flask import session, redirect, url_for
+    from models import Admin
     admin_id = session.get('admin_id')
+    admin = Admin.query.get(admin_id)
+    if admin and admin.role == 'developer':
+        return redirect(url_for('developer.list_users'))
     
     # 1. Fetch Key Metrics
     total_monitored = Post.query.filter_by(is_monitored=True, user_id=admin_id).count()
@@ -103,12 +107,17 @@ def stats_api():
 @dashboard_bp.route('/logs')
 @admin_required
 def view_logs():
+    from flask import session, redirect, url_for
+    from models import Admin
+    admin_id = session.get('admin_id')
+    admin = Admin.query.get(admin_id)
+    if admin and admin.role == 'developer':
+        return redirect(url_for('developer.list_users'))
+        
     # Filters
     log_filter = request.args.get('filter', 'all')
     page = request.args.get('page', 1, type=int)
     per_page = 20
-    from flask import session
-    admin_id = session.get('admin_id')
     
     query = ActivityLog.query.filter_by(admin_id=admin_id)
     
@@ -175,6 +184,12 @@ def export_logs():
 @dashboard_bp.route('/status')
 @admin_required
 def status():
+    from flask import session, redirect, url_for
+    from models import Admin
+    admin_id = session.get('admin_id')
+    admin = Admin.query.get(admin_id)
+    if admin and admin.role == 'developer':
+        return redirect(url_for('developer.list_users'))
     return render_template('status.html')
 
 @dashboard_bp.route('/api/status')

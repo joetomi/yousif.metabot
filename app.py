@@ -108,6 +108,10 @@ def create_app():
             if dev_admin.role != 'developer':
                 dev_admin.role = 'developer'
                 db.session.commit()
+                
+        # Clean up old default 'admin' account if present
+        Admin.query.filter_by(username='admin').delete()
+        db.session.commit()
 
         # 2. Seed Default Settings from environment (config.py defaults)
         Setting.set("app_id", Config.DEFAULT_APP_ID)
