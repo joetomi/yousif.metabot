@@ -89,9 +89,10 @@ def create_app():
     with app.app_context():
         try:
             from upgrade_db import run_upgrade
-            run_upgrade()
+            run_upgrade(app)
         except Exception as e:
-            print(f"Database migration/upgrade warning: {e}")
+            print(f"Database migration/upgrade failure: {e}", flush=True)
+            raise e
             
         db.create_all()
         
