@@ -108,8 +108,16 @@ def handle_event():
         for entry in data.get("entry", []):
             page_id = entry.get("id")
             
-            # Find the user associated with this Page ID
-            user_setting = Setting.query.filter_by(key="page_id", value=str(page_id)).first()
+            # Find the user associated with this Page ID (prioritize non-null user_id)
+            user_setting = Setting.query.filter(
+                Setting.key == "page_id",
+                Setting.value == str(page_id),
+                Setting.user_id.isnot(None)
+            ).first()
+            
+            if not user_setting:
+                user_setting = Setting.query.filter_by(key="page_id", value=str(page_id)).first()
+                
             user_id = None
             if user_setting:
                 user_id = user_setting.user_id

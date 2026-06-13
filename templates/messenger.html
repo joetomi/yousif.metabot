@@ -48,11 +48,27 @@
                             <input class="form-check-input" type="checkbox" role="switch" id="messenger_bot_enabled" name="messenger_bot_enabled" value="true" {% if bot_enabled == 'true' %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
                         </div>
                     </div>
+
+                    <!-- Enable Gemini switch -->
+                    <div class="form-check form-switch mb-4 p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="form-check-label text-white font-weight-bold" for="gemini_enabled" style="cursor: pointer;">
+                                {{ t.gemini_enabled_label }}
+                            </label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="gemini_enabled" name="gemini_enabled" value="true" {% if gemini_enabled == 'true' %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                        </div>
+                    </div>
                     
                     <!-- Gemini API Key -->
                     <div class="mb-4">
                         <label for="gemini_api_key" class="form-label text-white font-weight-bold">{{ t.gemini_api_key_label }}</label>
-                        <input type="password" class="form-control bg-dark text-white border-secondary" id="gemini_api_key" name="gemini_api_key" value="{{ gemini_api_key }}" placeholder="AI API Key (e.g. AIzaSy...)" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                        <div class="input-group">
+                            <input type="password" class="form-control bg-dark text-white border-secondary" id="gemini_api_key" name="gemini_api_key" value="{{ gemini_api_key }}" placeholder="AI API Key (e.g. AIzaSy...)" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                            <button class="btn btn-outline-info" type="button" id="btn-test-gemini" style="border-color: rgba(255,255,255,0.1) !important;">
+                                <i class="fa-solid fa-vial me-1"></i> {{ t.test_connection }}
+                            </button>
+                        </div>
+                        <div id="gemini-test-result" class="mt-2 small d-none"></div>
                     </div>
                     
                     <!-- Tone selector -->
@@ -168,4 +184,61 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const btnTest = document.getElementById("btn-test-gemini");
+    const inputKey = document.getElementById("gemini_api_key");
+    const resultDiv = document.getElementById("gemini-test-result");
+
+    if (btnTest) {
+        btnTest.addEventListener("click", function() {
+            const apiKey = inputKey.value.trim();
+            if (!apiKey) {
+                resultDiv.className = "mt-2 small text-danger";
+                resultDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + "{{ 'يرجى إدخال مفتاح API أولاً.' if lang == 'ar' else 'Please enter an API Key first.' }}";
+                resultDiv.classList.remove("d-none");
+                return;
+            }
+
+            // UI feedback
+            btnTest.disabled = true;
+            const originalHtml = btnTest.innerHTML;
+            btnTest.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ...';
+            resultDiv.className = "mt-2 small text-info";
+            resultDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> ' + "{{ 'جاري اختبار الاتصال بالذكاء الاصطناعي...' if lang == 'ar' else 'Testing AI connection...' }}";
+            resultDiv.classList.remove("d-none");
+
+            fetch("{{ url_for('messenger.test_gemini') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ gemini_api_key: apiKey })
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(result => {
+                btnTest.disabled = false;
+                btnTest.innerHTML = originalHtml;
+
+                if (result.status === 200 && result.body.status === "success") {
+                    resultDiv.className = "mt-2 small text-success";
+                    resultDiv.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> ' + result.body.message;
+                } else {
+                    resultDiv.className = "mt-2 small text-danger";
+                    resultDiv.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> ' + (result.body.message || 'Error occurred');
+                }
+            })
+            .catch(error => {
+                btnTest.disabled = false;
+                btnTest.innerHTML = originalHtml;
+                resultDiv.className = "mt-2 small text-danger";
+                resultDiv.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Connection error: ' + error.message;
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

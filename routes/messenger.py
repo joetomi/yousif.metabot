@@ -12,6 +12,7 @@ def index():
     
     # Fetch configurations
     bot_enabled = Setting.get("messenger_bot_enabled", "false", user_id=admin_id)
+    gemini_enabled = Setting.get("gemini_enabled", "false", user_id=admin_id)
     bot_tone = Setting.get("messenger_bot_tone", "professional", user_id=admin_id)
     bot_kb = Setting.get("messenger_bot_kb", "", user_id=admin_id)
     gemini_api_key = Setting.get("gemini_api_key", "", user_id=admin_id)
@@ -23,6 +24,7 @@ def index():
     return render_template(
         'messenger.html',
         bot_enabled=bot_enabled,
+        gemini_enabled=gemini_enabled,
         bot_tone=bot_tone,
         bot_kb=bot_kb,
         gemini_api_key=gemini_api_key,
@@ -37,6 +39,7 @@ def save_settings():
     admin_id = session.get('admin_id')
     
     enabled = request.form.get("messenger_bot_enabled", "false")
+    gemini_enabled = request.form.get("gemini_enabled", "false")
     tone = request.form.get("messenger_bot_tone", "professional")
     kb = request.form.get("messenger_bot_kb", "").strip()
     gemini_api_key = request.form.get("gemini_api_key", "").strip()
@@ -44,10 +47,12 @@ def save_settings():
     
     # Normalize inputs
     enabled_val = "true" if enabled == "true" or enabled == "on" else "false"
+    gemini_enabled_val = "true" if gemini_enabled == "true" or gemini_enabled == "on" else "false"
     if tone not in ["casual", "professional", "formal", "friendly"]:
         tone = "professional"
         
     Setting.set("messenger_bot_enabled", enabled_val, user_id=admin_id)
+    Setting.set("gemini_enabled", gemini_enabled_val, user_id=admin_id)
     Setting.set("messenger_bot_tone", tone, user_id=admin_id)
     Setting.set("messenger_bot_kb", kb, user_id=admin_id)
     Setting.set("gemini_api_key", gemini_api_key, user_id=admin_id)
@@ -55,6 +60,45 @@ def save_settings():
     
     flash("Messenger Bot settings saved successfully!", "success")
     return redirect(url_for('messenger.index'))
+
+@messenger_bp.route('/messenger/test-gemini', methods=['POST'])
+@admin_required
+def test_gemini():
+    from flask import jsonify
+    import google.generativeai as genai
+    
+    data = request.get_json() or {}
+    api_key = data.get("gemini_api_key", "").strip()
+    
+    if not api_key:
+        return jsonify({"status": "error", "message": "يرجى إدخال مفتاح API أولاً."}), 400
+        
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        # Call a very quick generation to verify connection
+        response = model.generate_content("Say 'Connection OK' in one word.")
+        if response and response.text:
+            return jsonify({
+                "status": "success",
+                "message": "تم الاتصال بسيرفرات Gemini بنجاح والذكاء الاصطناعي جاهز للرد على الزبائن!"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "استجاب السيرفر باستجابة فارغة. يرجى التحقق من صلاحيات المفتاح."
+            }), 400
+    except Exception as e:
+        error_msg = str(e)
+        if "API_KEY_INVALID" in error_msg or "invalid" in error_msg.lower():
+            error_msg = "مفتاح API غير صالح. يرجى التأكد من نسخه بشكل صحيح."
+        elif "quota" in error_msg.lower() or "limit" in error_msg.lower():
+            error_msg = "تم تجاوز الحصة المجانية للمفتاح (Quota Exceeded)."
+        return jsonify({
+            "status": "error",
+            "message": f"فشل الاتصال: {error_msg}"
+        }), 400
 
 @messenger_bp.route('/messenger/faq/add', methods=['POST'])
 @admin_required

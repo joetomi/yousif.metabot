@@ -823,5 +823,139 @@ class FacebookBotTestCase(unittest.TestCase):
         ), follow_redirects=True)
         self.assertIn("كلمة المرور غير متطابقة".encode('utf-8'), resp.data)
 
+    def test_messenger_settings_gemini_enabled(self):
+        """Verify that gemini_enabled settings are loaded/saved correctly."""
+        self.login_admin()
+        
+        # Save settings
+        resp = self.client.post('/messenger/save-settings', data=dict(
+            messenger_bot_enabled='true',
+            gemini_enabled='true',
+            messenger_bot_tone='friendly',
+            messenger_bot_kb='test knowledge base',
+            gemini_api_key='AIzaSyCustomKey',
+            messenger_bot_fallback='custom fallback message text'
+        ), follow_redirects=True)
+        
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'settings saved successfully', resp.data.lower())
+        
+        # Verify in database
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            self.assertIsNotNone(client_admin)
+            
+            bot_enabled = Setting.get("messenger_bot_enabled", user_id=client_admin.id)
+            gemini_enabled = Setting.get("gemini_enabled", user_id=client_admin.id)
+            gemini_api_key = Setting.get("gemini_api_key", user_id=client_admin.id)
+            bot_fallback = Setting.get("messenger_bot_fallback", user_id=client_admin.id)
+            
+            self.assertEqual(bot_enabled, 'true')
+            self.assertEqual(gemini_enabled, 'true')
+            self.assertEqual(gemini_api_key, 'AIzaSyCustomKey')
+            self.assertEqual(bot_fallback, 'custom fallback message text')
+
+    @patch('google.generativeai.GenerativeModel')
+    def test_test_gemini_endpoint(self, mock_generative_model):
+        """Verify Gemini connection test endpoint API behaves correctly."""
+        self.login_admin()
+        
+        # 1. Test empty key
+        resp = self.client.post('/messenger/test-gemini', data=json.dumps({
+            "gemini_api_key": ""
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('يرجى إدخال', data['message'])
+        
+        # 2. Test valid mock response
+        mock_model_instance = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Connection OK"
+        mock_model_instance.generate_content.return_value = mock_response
+        mock_generative_model.return_value = mock_model_instance
+        
+        resp = self.client.post('/messenger/test-gemini', data=json.dumps({
+            "gemini_api_key": "AIzaSyValidKey_123"
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('تم الاتصال', data['message'])
+        
+        # 3. Test exception/invalid key
+        mock_model_instance.generate_content.side_effect = Exception("API_KEY_INVALID")
+        resp = self.client.post('/messenger/test-gemini', data=json.dumps({
+            "gemini_api_key": "AIzaSyInvalidKey_123"
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('غير صالح', data['message'])
+
+    @patch('services.facebook_api.requests.post')
+    def test_comment_processor_fallback_when_gemini_fails(self, mock_post):
+        """Verify comment processor uses custom fallback message for private replies when Gemini fails."""
+        from services.comment_processor import process_comment_job
+        
+        with self.app.app_context():
+            # Setup user
+            client_admin = Admin.query.filter_by(username='admin').first()
+            self.assertIsNotNone(client_admin)
+            client_id = client_admin.id
+            
+            # Setup settings
+            Setting.set("page_access_token", "fake_token", user_id=client_id)
+            Setting.set("page_id", "page_id_123", user_id=client_id)
+            Setting.set("gemini_enabled", "true", user_id=client_id)
+            Setting.set("gemini_api_key", "fake_gemini_key", user_id=client_id)
+            Setting.set("messenger_bot_fallback", "الرسالة الاحتياطية المخصصة للعميل", user_id=client_id)
+            
+            # Setup monitored post
+            post = Post.query.filter_by(id="post_monitored_123").first()
+            if not post:
+                post = Post(
+                    id="post_monitored_123",
+                    message="Check this out!",
+                    is_monitored=True,
+                    user_id=client_id,
+                    default_reply="شكراً لتعليقك",
+                    private_message="مرحبا بك"
+                )
+                db.session.add(post)
+                db.session.commit()
+            
+            # Setup mock webhook logs and comment de-duplication
+            Comment.query.filter_by(id="comment_fallback_test").delete()
+            db.session.commit()
+            
+        # Mock Graph API calls
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true, "id":"reply_123"}'
+        mock_post.return_value = mock_resp
+        
+        # Simulate comment details with app_user_id (client_id)
+        comment_data = {
+            "comment_id": "comment_fallback_test",
+            "post_id": "post_monitored_123",
+            "user_id": "customer_999",
+            "username": "Customer Client",
+            "message": "Hello!",
+            "created_time": "2026-06-13T12:00:00+0000",
+            "app_user_id": client_id
+        }
+        
+        # Mock generate_ai_replies to return None (simulate Gemini offline/error)
+        with patch('services.gemini_api.generate_ai_replies', return_value=None):
+            process_comment_job(self.app, comment_data)
+            
+        # Verify private message sent is the custom fallback message instead of post.private_message
+        with self.app.app_context():
+            msg_record = Message.query.filter_by(comment_id="comment_fallback_test").first()
+            self.assertIsNotNone(msg_record)
+            self.assertEqual(msg_record.message_content, "الرسالة الاحتياطية المخصصة للعميل")
+
 if __name__ == "__main__":
     unittest.main()

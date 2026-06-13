@@ -172,15 +172,24 @@ def process_comment_job(app, comment_data):
             parsed_reply, parsed_private = ai_replies
             print(f"Using Gemini generated replies for comment {comment_id}.")
         else:
-            reply_template = post.default_reply or "Thank you for your comment. We have sent details to your inbox."
-            private_template = post.private_message or "Hello {name}, thank you for your message."
-            
-            parsed_reply = FacebookApiService.parse_template(
-                reply_template, username, message_text, post_id, created_time
-            )
-            parsed_private = FacebookApiService.parse_template(
-                private_template, username, message_text, post_id, created_time
-            )
+            # Fallback
+            gemini_enabled = Setting.get("gemini_enabled", "false", user_id=admin_id)
+            if str(gemini_enabled).lower() == "true":
+                fallback_text = Setting.get("messenger_bot_fallback", "شكراً لتواصلك معنا. تم استلام رسالتك وسيقوم أحد ممثلي خدمة العملاء بالرد عليك قريباً.", user_id=admin_id)
+                parsed_reply = post.default_reply or "تم الرد على الخاص."
+                parsed_private = FacebookApiService.parse_template(
+                    fallback_text, username, message_text, post_id, created_time
+                )
+            else:
+                reply_template = post.default_reply or "Thank you for your comment. We have sent details to your inbox."
+                private_template = post.private_message or "Hello {name}, thank you for your message."
+                
+                parsed_reply = FacebookApiService.parse_template(
+                    reply_template, username, message_text, post_id, created_time
+                )
+                parsed_private = FacebookApiService.parse_template(
+                    private_template, username, message_text, post_id, created_time
+                )
 
         # 5. Public Reply
         reply_success, reply_msg, reply_fb_id = api.reply_to_comment(comment_id, parsed_reply)
