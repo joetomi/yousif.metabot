@@ -87,6 +87,12 @@ def create_app():
 
     # Initialize Database tables, seed default Admin, and verify setup
     with app.app_context():
+        try:
+            from upgrade_db import run_upgrade
+            run_upgrade()
+        except Exception as e:
+            print(f"Database migration/upgrade warning: {e}")
+            
         db.create_all()
         
         # 1. Seed Default Admin (Developer)
