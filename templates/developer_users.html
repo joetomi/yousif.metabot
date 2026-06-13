@@ -133,55 +133,6 @@
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </form>
-                                    
-                                    <!-- Extend Expiry Modal -->
-                                    <div class="modal fade" id="extendModal{{ item.user.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(10px);">
-                                        <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: right; direction: rtl;">
-                                                <div class="modal-header border-secondary">
-                                                    <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-clock text-warning me-2"></i> تمديد الاشتراك للعميل ({{ item.user.username }})</h5>
-                                                    <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form action="{{ url_for('developer.extend_subscription', user_id=item.user.id) }}" method="POST">
-                                                    <div class="modal-body">
-                                                        <div class="mb-3">
-                                                            <label class="form-label text-white font-weight-bold small">تاريخ انتهاء الاشتراك الجديد</label>
-                                                            <input type="date" class="form-control bg-dark text-white border-secondary text-end" name="subscription_expires_at" value="{{ item.expiry_str }}" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
-                                                            <div class="form-text text-secondary mt-1 small">اتركه فارغاً لجعله غير محدود.</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer border-secondary justify-content-start">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                                        <button type="submit" class="btn btn-emerald">حفظ التعديلات</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Password Modal -->
-                                    <div class="modal fade" id="passwordModal{{ item.user.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(10px);">
-                                        <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: right; direction: rtl;">
-                                                <div class="modal-header border-secondary">
-                                                    <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-key text-info me-2"></i> تغيير كلمة المرور للعميل ({{ item.user.username }})</h5>
-                                                    <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form action="{{ url_for('developer.change_password', user_id=item.user.id) }}" method="POST">
-                                                    <div class="modal-body">
-                                                        <div class="mb-3">
-                                                            <label class="form-label text-white font-weight-bold small">كلمة المرور الجديدة</label>
-                                                            <input type="password" class="form-control bg-dark text-white border-secondary text-end" name="new_password" placeholder="أدخل كلمة المرور الجديدة" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer border-secondary justify-content-start">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                                        <button type="submit" class="btn btn-emerald">تحديث كلمة المرور</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </td>
                             </tr>
                             {% else %}
@@ -199,4 +150,55 @@
         </div>
     </div>
 </div>
+
+{% for item in users %}
+<!-- Extend Expiry Modal -->
+<div class="modal fade" id="extendModal{{ item.user.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(10px);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: right; direction: rtl;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-clock text-warning me-2"></i> تمديد الاشتراك للعميل ({{ item.user.username }})</h5>
+                <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('developer.extend_subscription', user_id=item.user.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white font-weight-bold small">تاريخ انتهاء الاشتراك الجديد</label>
+                        <input type="date" class="form-control bg-dark text-white border-secondary text-end" name="subscription_expires_at" value="{{ item.expiry_str }}" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                        <div class="form-text text-secondary mt-1 small">اتركه فارغاً لجعله غير محدود.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary justify-content-start">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-emerald">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Password Modal -->
+<div class="modal fade" id="passwordModal{{ item.user.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(10px);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border-secondary text-white" style="background: rgba(17, 24, 39, 0.95) !important; text-align: right; direction: rtl;">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title font-weight-bold"><i class="fa-solid fa-key text-info me-2"></i> تغيير كلمة المرور للعميل ({{ item.user.username }})</h5>
+                <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('developer.change_password', user_id=item.user.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white font-weight-bold small">كلمة المرور الجديدة</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary text-end" name="new_password" placeholder="أدخل كلمة المرور الجديدة" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary justify-content-start">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-emerald">تحديث كلمة المرور</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

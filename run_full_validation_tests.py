@@ -563,5 +563,102 @@ class FacebookBotTestCase(unittest.TestCase):
         self.assertEqual(call_args['json']['recipient']['id'], "customer_id_456")
         self.assertEqual(call_args['json']['message']['text'], "FAQ: We have three plans.")
 
+    def test_developer_panel(self):
+        """Verify developer panel access, user creation, deletion, password change, and subscription extension."""
+        # 1. Accessing developer route without log in redirects to login
+        resp = self.client.get('/developer/users')
+        self.assertEqual(resp.status_code, 302)
+        
+        # 2. Accessing developer route as standard user redirects to dashboard index with error
+        self.login_admin()
+        resp = self.client.get('/developer/users', follow_redirects=True)
+        self.assertIn(b'Access denied', resp.data)
+        self.client.get('/logout')
+        
+        # 3. Seed a developer user and login
+        with self.app.app_context():
+            dev = Admin(username='test_dev', role='developer')
+            dev.set_password('devpass')
+            db.session.add(dev)
+            
+            client_user = Admin(username='test_client', role='user')
+            client_user.set_password('clientpass')
+            db.session.add(client_user)
+            db.session.commit()
+            client_id = client_user.id
+            
+        # Login as developer
+        self.client.post('/login', data=dict(
+            username='test_dev',
+            password='devpass'
+        ), follow_redirects=True)
+        
+        # 4. View users list - should contain test_client but NOT test_dev
+        resp = self.client.get('/developer/users')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'test_client', resp.data)
+        self.assertNotIn(b'test_dev', resp.data)
+        
+        # 5. Add a new user via developer panel
+        resp = self.client.post('/developer/users/add', data=dict(
+            username='new_client',
+            password='newpassword',
+            subscription_expires_at='2026-12-31'
+        ), follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'User account created successfully!', resp.data)
+        
+        with self.app.app_context():
+            new_u = Admin.query.filter_by(username='new_client').first()
+            self.assertIsNotNone(new_u)
+            self.assertEqual(new_u.role, 'user')
+            self.assertEqual(new_u.subscription_expires_at.strftime('%Y-%m-%d'), '2026-12-31')
+            
+        # 6. Toggle client status
+        resp = self.client.post(f'/developer/users/toggle-status/{client_id}', follow_redirects=True)
+        self.assertIn(b'has been deactivated', resp.data)
+        
+        with self.app.app_context():
+            u = Admin.query.get(client_id)
+            self.assertFalse(u.is_active)
+            
+        # 7. Extend subscription
+        resp = self.client.post(f'/developer/users/extend-subscription/{client_id}', data=dict(
+            subscription_expires_at='2027-01-01'
+        ), follow_redirects=True)
+        self.assertIn(b'updated successfully', resp.data)
+        
+        with self.app.app_context():
+            u = Admin.query.get(client_id)
+            self.assertEqual(u.subscription_expires_at.strftime('%Y-%m-%d'), '2027-01-01')
+            
+        # 8. Change client password
+        resp = self.client.post(f'/developer/users/change-password/{client_id}', data=dict(
+            new_password='updated_password'
+        ), follow_redirects=True)
+        self.assertIn(b'updated successfully', resp.data)
+        
+        with self.app.app_context():
+            u = Admin.query.get(client_id)
+            self.assertTrue(u.check_password('updated_password'))
+            
+        # 9. Change own (developer) password
+        resp = self.client.post('/developer/change-own-password', data=dict(
+            new_password='new_dev_pass'
+        ), follow_redirects=True)
+        self.assertIn(b'password updated successfully', resp.data)
+        
+        with self.app.app_context():
+            d = Admin.query.filter_by(username='test_dev').first()
+            self.assertTrue(d.check_password('new_dev_pass'))
+            
+        # 10. Delete client user
+        resp = self.client.post(f'/developer/users/delete/{client_id}', follow_redirects=True)
+        self.assertIn(b'deleted successfully', resp.data)
+        
+        with self.app.app_context():
+            u = Admin.query.get(client_id)
+            self.assertIsNone(u)
+
 if __name__ == "__main__":
     unittest.main()
