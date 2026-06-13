@@ -15,6 +15,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
+    # Trust reverse proxy headers (for Render HTTPS)
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
     # Initialize Database & Migrations
     db.init_app(app)
     migrate.init_app(app, db)

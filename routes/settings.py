@@ -19,6 +19,10 @@ def facebook_login():
         return redirect(url_for('dashboard.index'))
         
     redirect_uri = f"{request.url_root.rstrip('/')}/settings/facebook/callback"
+    # Force HTTPS for production/external URLs to prevent "Insecure Login Blocked" from Meta
+    if not request.host.startswith('localhost') and not request.host.startswith('127.0.0.1'):
+        if redirect_uri.startswith('http://'):
+            redirect_uri = redirect_uri.replace('http://', 'https://', 1)
     
     # Anti-forgery state token
     state = secrets.token_hex(16)
@@ -55,6 +59,10 @@ def facebook_callback():
     app_id = Setting.get("app_id")
     app_secret = Setting.get("app_secret")
     redirect_uri = f"{request.url_root.rstrip('/')}/settings/facebook/callback"
+    # Force HTTPS for production/external URLs to prevent "Insecure Login Blocked" from Meta
+    if not request.host.startswith('localhost') and not request.host.startswith('127.0.0.1'):
+        if redirect_uri.startswith('http://'):
+            redirect_uri = redirect_uri.replace('http://', 'https://', 1)
     
     if not app_id or not app_secret:
         flash("App ID or App Secret configuration missing.", "danger")
