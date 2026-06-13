@@ -10,6 +10,9 @@ class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(20), default='user')  # 'developer' or 'user'
+    is_active = db.Column(db.Boolean, default=True)
+    subscription_expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def set_password(self, password):
@@ -23,21 +26,47 @@ class Setting(db.Model):
     __tablename__ = 'settings'
     
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False)
+    key = db.Column(db.String(100), nullable=False)
     value = db.Column(db.Text, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
+    
+    # We remove unique constraint from key column because key is now unique per user_id.
+    # We will enforce uniqueness per (key, user_id) in database/queries.
+    __table_args__ = (
+        db.UniqueConstraint('key', 'user_id', name='uq_setting_key_user'),
+    )
     
     @staticmethod
-    def get(key, default=None):
-        setting = Setting.query.filter_by(key=key).first()
+    def get(key, default=None, user_id=None):
+        if user_id is None:
+            from flask import has_request_context, session
+            if has_request_context():
+                user_id = session.get('admin_id')
+        
+        if user_id:
+            setting = Setting.query.filter_by(key=key, user_id=user_id).first()
+            if setting:
+                return setting.value
+                
+        setting = Setting.query.filter_by(key=key, user_id=None).first()
         return setting.value if setting else default
         
     @staticmethod
-    def set(key, value):
-        setting = Setting.query.filter_by(key=key).first()
+    def set(key, value, user_id=None):
+        if user_id is None:
+            from flask import has_request_context, session
+            if has_request_context():
+                user_id = session.get('admin_id')
+                
+        global_keys = ["app_id", "app_secret", "verify_token", "tunnel_url"]
+        if key in global_keys:
+            user_id = None
+            
+        setting = Setting.query.filter_by(key=key, user_id=user_id).first()
         if setting:
-            setting.value = str(value)
+            setting.value = str(value) if value is not None else None
         else:
-            setting = Setting(key=key, value=str(value))
+            setting = Setting(key=key, value=str(value) if value is not None else None, user_id=user_id)
             db.session.add(setting)
         db.session.commit()
 
@@ -50,6 +79,7 @@ class Post(db.Model):
     created_time = db.Column(db.DateTime, nullable=True)
     comment_count = db.Column(db.Integer, default=0)
     is_monitored = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
     
     # Custom templates per post
     default_reply = db.Column(db.Text, default="Thank you for your comment. We have sent details to your inbox.")
@@ -100,6 +130,7 @@ class ProcessedUser(db.Model):
     user_id = db.Column(db.String(100), nullable=False)
     post_id = db.Column(db.String(100), nullable=True)  # Nullable if globally tracked
     processed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
 
 
 class MessengerFAQ(db.Model):
@@ -110,6 +141,7 @@ class MessengerFAQ(db.Model):
     response = db.Column(db.Text, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
 
 
 class ProcessedMessage(db.Model):
@@ -118,6 +150,7 @@ class ProcessedMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     message_id = db.Column(db.String(150), unique=True, nullable=False) # Meta message ID (mid)
     processed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
 
 
 
@@ -146,6 +179,7 @@ class ActivityLog(db.Model):
     post_id = db.Column(db.String(100), nullable=True)
     status = db.Column(db.String(50), nullable=False)  # SUCCESS, FAILED
     message = db.Column(db.Text, nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
 
 
 class WebhookLog(db.Model):

@@ -13,6 +13,19 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def developer_required(f):
+    """Decorator to protect routes from non-developer access."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'admin_logged_in' not in session or not session['admin_logged_in']:
+            return redirect(url_for('auth.login', next=request.url))
+        admin = Admin.query.get(session.get('admin_id'))
+        if not admin or admin.role != 'developer':
+            flash('Access denied. Developer role required.', 'danger')
+            return redirect(url_for('dashboard.index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('admin_logged_in'):
@@ -31,9 +44,9 @@ def login():
             session['admin_username'] = admin.username
             session.permanent = True  # session persistent based on config
             
-            # Default to English if no language set
+            # Default to Arabic if no language set
             if 'lang' not in session:
-                session['lang'] = 'en'
+                session['lang'] = 'ar'
                 
             flash('Logged in successfully!', 'success')
             
@@ -53,7 +66,7 @@ def logout():
 @auth_bp.route('/toggle-lang')
 def toggle_lang():
     """Toggles language setting in session."""
-    current_lang = session.get('lang', 'en')
+    current_lang = session.get('lang', 'ar')
     session['lang'] = 'ar' if current_lang == 'en' else 'en'
     return redirect(request.referrer or url_for('dashboard.index'))
 

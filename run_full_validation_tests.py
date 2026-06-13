@@ -120,11 +120,11 @@ class FacebookBotTestCase(unittest.TestCase):
         
         # Test login success
         resp = self.login_admin()
-        self.assertIn(b'Dashboard', resp.data)
+        self.assertTrue(b'Dashboard' in resp.data or b'\xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85' in resp.data)
         
         # Test logout clears session
         resp = self.client.get('/logout', follow_redirects=True)
-        self.assertIn(b'Admin Login', resp.data)
+        self.assertTrue(b'Admin Login' in resp.data or b'\xd8\xaa\xd8\xb3\xd8\xac\xd9\x8a\xd9\x84 \xd8\xaf\xd8\xae\xd9\x88\xd9\x84 \xd8\xa7\xd9\x84\xd9\x85\xd8\xb3\xd8\xa4\xd9\x88\xd9\x84' in resp.data)
         
         # Test dashboard is blocked again
         resp = self.client.get('/dashboard', follow_redirects=False)
@@ -420,22 +420,22 @@ class FacebookBotTestCase(unittest.TestCase):
     # 13. Verify Billingual & RTL translations
     def test_bilingual_rtl_support(self):
         """Verify that language translation session toggle changes dictionary keys."""
-        # Initial access (defaults to English LTR)
+        # Initial access (defaults to Arabic RTL)
         self.login_admin()
         resp = self.client.get('/dashboard')
-        self.assertIn(b'Dashboard', resp.data)
-        self.assertNotIn(b'\xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85', resp.data) # arabic representation of "Dashboard"
+        self.assertIn(b'\xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85', resp.data) # arabic representation of "Dashboard"
+        self.assertNotIn(b'Dashboard', resp.data)
         
-        # Toggle language to Arabic
-        self.client.get('/toggle-lang')
-        resp = self.client.get('/dashboard')
-        # Arabic representation check
-        self.assertIn(b'\xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85', resp.data) # arabic title checks
-        
-        # Toggle back to English
+        # Toggle language to English
         self.client.get('/toggle-lang')
         resp = self.client.get('/dashboard')
         self.assertIn(b'Dashboard', resp.data)
+        self.assertNotIn(b'\xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85', resp.data)
+        
+        # Toggle back to Arabic
+        self.client.get('/toggle-lang')
+        resp = self.client.get('/dashboard')
+        self.assertIn(b'\xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85', resp.data)
 
     # 14. Verify security checks
     def test_security_configurations(self):
@@ -456,7 +456,7 @@ class FacebookBotTestCase(unittest.TestCase):
         # Access index
         resp = self.client.get('/messenger')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Messenger Auto-Responder Settings', resp.data)
+        self.assertTrue(b'Messenger Auto-Responder Settings' in resp.data or b'\xd8\xa5\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf\xd8\xa7\xd8\xaa \xd8\xa7\xd9\x84\xd9\x85\xd8\xac\xd9\x8a\xd8\xa8 \xd8\xa7\xd9\x84\xd8\xa2\xd9\x84\xd9\x8a \xd9\x81\xd9\x8a \xd9\x85\xd8\xa7\xd8\xb3\xd9\x86\xd8\xac\xd8\xb1' in resp.data)
         
         # Save settings
         resp = self.client.post('/messenger/save-settings', data=dict(
@@ -468,9 +468,10 @@ class FacebookBotTestCase(unittest.TestCase):
         self.assertIn(b'Messenger Bot settings saved successfully!', resp.data)
         
         with self.app.app_context():
-            self.assertEqual(Setting.get("messenger_bot_enabled"), "true")
-            self.assertEqual(Setting.get("messenger_bot_tone"), "casual")
-            self.assertEqual(Setting.get("messenger_bot_kb"), "Custom KB plans")
+            admin = Admin.query.filter_by(username='admin').first()
+            self.assertEqual(Setting.get("messenger_bot_enabled", user_id=admin.id), "true")
+            self.assertEqual(Setting.get("messenger_bot_tone", user_id=admin.id), "casual")
+            self.assertEqual(Setting.get("messenger_bot_kb", user_id=admin.id), "Custom KB plans")
             
         # Add FAQ rule
         resp = self.client.post('/messenger/faq/add', data=dict(

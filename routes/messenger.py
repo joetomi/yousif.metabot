@@ -7,37 +7,51 @@ messenger_bp = Blueprint('messenger', __name__)
 @messenger_bp.route('/messenger', methods=['GET'])
 @admin_required
 def index():
-    # Fetch configurations
-    bot_enabled = Setting.get("messenger_bot_enabled", "false")
-    bot_tone = Setting.get("messenger_bot_tone", "professional")
-    bot_kb = Setting.get("messenger_bot_kb", "")
+    from flask import session
+    admin_id = session.get('admin_id')
     
-    # Fetch all FAQ rules
-    faqs = MessengerFAQ.query.order_by(MessengerFAQ.created_at.desc()).all()
+    # Fetch configurations
+    bot_enabled = Setting.get("messenger_bot_enabled", "false", user_id=admin_id)
+    bot_tone = Setting.get("messenger_bot_tone", "professional", user_id=admin_id)
+    bot_kb = Setting.get("messenger_bot_kb", "", user_id=admin_id)
+    gemini_api_key = Setting.get("gemini_api_key", "", user_id=admin_id)
+    bot_fallback = Setting.get("messenger_bot_fallback", "شكراً لتواصلك معنا. تم استلام رسالتك وسيقوم أحد ممثلي خدمة العملاء بالرد عليك قريباً.", user_id=admin_id)
+    
+    # Fetch all FAQ rules for this user
+    faqs = MessengerFAQ.query.filter_by(admin_id=admin_id).order_by(MessengerFAQ.created_at.desc()).all()
     
     return render_template(
         'messenger.html',
         bot_enabled=bot_enabled,
         bot_tone=bot_tone,
         bot_kb=bot_kb,
+        gemini_api_key=gemini_api_key,
+        bot_fallback=bot_fallback,
         faqs=faqs
     )
 
 @messenger_bp.route('/messenger/save-settings', methods=['POST'])
 @admin_required
 def save_settings():
+    from flask import session
+    admin_id = session.get('admin_id')
+    
     enabled = request.form.get("messenger_bot_enabled", "false")
     tone = request.form.get("messenger_bot_tone", "professional")
     kb = request.form.get("messenger_bot_kb", "").strip()
+    gemini_api_key = request.form.get("gemini_api_key", "").strip()
+    bot_fallback = request.form.get("messenger_bot_fallback", "").strip()
     
     # Normalize inputs
     enabled_val = "true" if enabled == "true" or enabled == "on" else "false"
     if tone not in ["casual", "professional", "formal", "friendly"]:
         tone = "professional"
         
-    Setting.set("messenger_bot_enabled", enabled_val)
-    Setting.set("messenger_bot_tone", tone)
-    Setting.set("messenger_bot_kb", kb)
+    Setting.set("messenger_bot_enabled", enabled_val, user_id=admin_id)
+    Setting.set("messenger_bot_tone", tone, user_id=admin_id)
+    Setting.set("messenger_bot_kb", kb, user_id=admin_id)
+    Setting.set("gemini_api_key", gemini_api_key, user_id=admin_id)
+    Setting.set("messenger_bot_fallback", bot_fallback, user_id=admin_id)
     
     flash("Messenger Bot settings saved successfully!", "success")
     return redirect(url_for('messenger.index'))
@@ -45,6 +59,9 @@ def save_settings():
 @messenger_bp.route('/messenger/faq/add', methods=['POST'])
 @admin_required
 def add_faq():
+    from flask import session
+    admin_id = session.get('admin_id')
+    
     keyword = request.form.get("keyword", "").strip()
     response = request.form.get("response", "").strip()
     
@@ -52,13 +69,13 @@ def add_faq():
         flash("Both Keyword and Custom Response are required.", "danger")
         return redirect(url_for('messenger.index'))
         
-    # Check if keyword already exists
-    exists = MessengerFAQ.query.filter_by(keyword=keyword).first()
+    # Check if keyword already exists for this user
+    exists = MessengerFAQ.query.filter_by(keyword=keyword, admin_id=admin_id).first()
     if exists:
         flash(f"A rule with keyword '{keyword}' already exists.", "warning")
         return redirect(url_for('messenger.index'))
         
-    new_faq = MessengerFAQ(keyword=keyword, response=response)
+    new_faq = MessengerFAQ(keyword=keyword, response=response, admin_id=admin_id)
     db.session.add(new_faq)
     db.session.commit()
     
@@ -68,7 +85,10 @@ def add_faq():
 @messenger_bp.route('/messenger/faq/delete/<int:faq_id>', methods=['POST'])
 @admin_required
 def delete_faq(faq_id):
-    faq = MessengerFAQ.query.get_or_404(faq_id)
+    from flask import session
+    admin_id = session.get('admin_id')
+    
+    faq = MessengerFAQ.query.filter_by(id=faq_id, admin_id=admin_id).first_or_404()
     db.session.delete(faq)
     db.session.commit()
     

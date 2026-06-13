@@ -63,3 +63,5 @@ class Config:
     DEFAULT_MESSENGER_BOT_TONE = messenger_bot_tone
     
     DEFAULT_MESSENGER_BOT_KB = os.getenv("MESSENGER_BOT_KB", "أهلاً بك في خدماتنا! نحن نقدم خطط اشتراك مميزة تناسب احتياجاتك.")
+    
+    DEFAULT_MESSENGER_BOT_FALLBACK = os.getenv("MESSENGER_BOT_FALLBACK", "شكراً لتواصلك معنا. تم استلام رسالتك وسيقوم أحد ممثلي خدمة العملاء بالرد عليك قريباً.")

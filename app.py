@@ -33,6 +33,7 @@ def create_app():
     from routes.settings import settings_bp
     from routes.webhook import webhook_bp
     from routes.messenger import messenger_bp
+    from routes.developer import developer_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -40,20 +41,28 @@ def create_app():
     app.register_blueprint(settings_bp)
     app.register_blueprint(webhook_bp)
     app.register_blueprint(messenger_bp)
+    app.register_blueprint(developer_bp)
     
     # Context Processor for Bilingual/Arabic RTL translations
     @app.context_processor
     def inject_translations():
-        lang = session.get('lang', 'en')
+        lang = session.get('lang', 'ar')
         if lang not in translations:
-            lang = 'en'
+            lang = 'ar'
         from datetime import datetime
+        admin_id = session.get('admin_id')
+        is_developer = False
+        if admin_id:
+            admin = Admin.query.get(admin_id)
+            if admin and admin.role == 'developer':
+                is_developer = True
         return dict(
             lang=lang,
             t=translations[lang],
             datetime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-            page_name=Setting.get("page_name", ""),
-            page_id=Setting.get("page_id", "")
+            page_name=Setting.get("page_name", "", user_id=admin_id),
+            page_id=Setting.get("page_id", "", user_id=admin_id),
+            is_developer=is_developer
         )
 
     # Server-side inactivity timeout (1 minute)
@@ -80,15 +89,18 @@ def create_app():
     with app.app_context():
         db.create_all()
         
-        # 1. Seed Default Admin
-        admin = Admin.query.filter_by(username='admin').first()
-        if not admin:
-            admin = Admin(username='admin')
-            # Seed default password
-            admin.set_password('admin')
-            db.session.add(admin)
+        # 1. Seed Default Admin (Developer)
+        dev_admin = Admin.query.filter_by(username='joetomi').first()
+        if not dev_admin:
+            dev_admin = Admin(username='joetomi', role='developer')
+            dev_admin.set_password('0078707')
+            db.session.add(dev_admin)
             db.session.commit()
-            print("Seeded default administrator: Username: 'admin', Password: 'admin'")
+            print("Seeded default developer: Username: 'joetomi', Password: '0078707'")
+        else:
+            if dev_admin.role != 'developer':
+                dev_admin.role = 'developer'
+                db.session.commit()
 
         # 2. Seed Default Settings from environment (config.py defaults)
         Setting.set("app_id", Config.DEFAULT_APP_ID)
@@ -107,6 +119,7 @@ def create_app():
         seed_setting("messenger_bot_enabled", Config.DEFAULT_MESSENGER_BOT_ENABLED)
         seed_setting("messenger_bot_tone", Config.DEFAULT_MESSENGER_BOT_TONE)
         seed_setting("messenger_bot_kb", Config.DEFAULT_MESSENGER_BOT_KB)
+        seed_setting("messenger_bot_fallback", Config.DEFAULT_MESSENGER_BOT_FALLBACK)
         
         if not Setting.get("anti_spam_mode"):
             Setting.set("anti_spam_mode", "every_comment")

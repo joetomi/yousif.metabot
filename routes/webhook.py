@@ -106,6 +106,36 @@ def handle_event():
     # 2. Check for feed changes (new comments) or direct messages (messaging)
     if data.get("object") == "page":
         for entry in data.get("entry", []):
+            page_id = entry.get("id")
+            
+            # Find the user associated with this Page ID
+            user_setting = Setting.query.filter_by(key="page_id", value=str(page_id)).first()
+            user_id = None
+            if user_setting:
+                user_id = user_setting.user_id
+                
+            if not user_id:
+                # Fallback to the default admin user for unittests / global settings
+                from models import Admin
+                default_admin = Admin.query.filter_by(role='developer').first() or Admin.query.first()
+                if default_admin:
+                    user_id = default_admin.id
+                    
+            if not user_id:
+                print(f"Skipping event for Page ID {page_id} because it's not connected to any registered user.")
+                continue
+            
+            # Verify admin user is active and subscription is valid
+            from models import Admin
+            admin = Admin.query.get(user_id)
+            if not admin or not admin.is_active:
+                print(f"Skipping event for user {user_id}: Inactive account.")
+                continue
+                
+            if admin.subscription_expires_at and admin.subscription_expires_at < datetime.utcnow():
+                print(f"Skipping event for user {user_id}: Subscription expired at {admin.subscription_expires_at}.")
+                continue
+            
             # A. Handle comments (feed changes)
             for change in entry.get("changes", []):
                 if change.get("field") == "feed":
@@ -120,6 +150,12 @@ def handle_event():
                         post_id = val.get("post_id")
                         sender_id = val.get("from", {}).get("id")
                         sender_name = val.get("from", {}).get("name")
+                        
+                        # Skip comments written by the page itself to prevent loops
+                        if sender_id and str(sender_id) == str(page_id):
+                            print(f"Skipping comment {comment_id} written by the page itself to prevent loop.")
+                            continue
+                            
                         message = val.get("message", "")
                         created_time_int = val.get("created_time")
                         
@@ -134,7 +170,8 @@ def handle_event():
                             "user_id": sender_id,
                             "username": sender_name,
                             "message": message,
-                            "created_time": created_time_str
+                            "created_time": created_time_str,
+                            "app_user_id": user_id
                         }
                         
                         # Enqueue immediate processing task using APScheduler
@@ -155,10 +192,10 @@ def handle_event():
                 for messaging_event in entry.get("messaging", []):
                     sender_id = messaging_event.get("sender", {}).get("id")
                     recipient_id = messaging_event.get("recipient", {}).get("id")
-                    page_id = Setting.get("page_id")
+                    page_id_stored = Setting.get("page_id", user_id=user_id)
                     
                     # Skip messages sent by the page itself to prevent loop
-                    if sender_id and sender_id != page_id:
+                    if sender_id and sender_id != page_id_stored:
                         message_data = messaging_event.get("message", {})
                         # Ignore echo messages and non-text messages
                         if "text" in message_data and not message_data.get("is_echo"):
@@ -169,7 +206,8 @@ def handle_event():
                                 "sender_id": sender_id,
                                 "message_text": message_text,
                                 "message_id": message_id,
-                                "timestamp": messaging_event.get("timestamp")
+                                "timestamp": messaging_event.get("timestamp"),
+                                "app_user_id": user_id
                             }
                             
                             from services.messenger_processor import process_messenger_job

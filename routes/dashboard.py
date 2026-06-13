@@ -13,15 +13,18 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/dashboard')
 @admin_required
 def index():
+    from flask import session
+    admin_id = session.get('admin_id')
+    
     # 1. Fetch Key Metrics
-    total_monitored = Post.query.filter_by(is_monitored=True).count()
-    total_comments = Comment.query.count()
-    total_replies = Comment.query.filter_by(reply_sent=True).count()
-    total_messages = Message.query.filter_by(status='SUCCESS').count()
+    total_monitored = Post.query.filter_by(is_monitored=True, user_id=admin_id).count()
+    total_comments = Comment.query.join(Post).filter(Post.user_id == admin_id).count()
+    total_replies = Comment.query.join(Post).filter(Post.user_id == admin_id, Comment.reply_sent == True).count()
+    total_messages = Message.query.join(Post).filter(Post.user_id == admin_id, Message.status == 'SUCCESS').count()
     total_webhooks = WebhookLog.query.count()
     
     # 2. Fetch Recent Activities (limit to 10)
-    recent_activities = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(10).all()
+    recent_activities = ActivityLog.query.filter_by(admin_id=admin_id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
     
     # 3. Compile Chart Data (Past 7 Days)
     today = datetime.utcnow().date()
@@ -37,7 +40,7 @@ def index():
     start_date = datetime.combine(dates_list[0], datetime.min.time())
     
     # Comments Count
-    comments_query = db.session.query(Comment.created_time).filter(Comment.created_time >= start_date).all()
+    comments_query = db.session.query(Comment.created_time).join(Post).filter(Post.user_id == admin_id, Comment.created_time >= start_date).all()
     for (ct,) in comments_query:
         if ct:
             date_str = ct.strftime("%Y-%m-%d")
@@ -45,7 +48,7 @@ def index():
                 comments_by_day[date_str] += 1
                 
     # Replies Count
-    replies_query = db.session.query(Comment.processed_at).filter(Comment.processed_at >= start_date, Comment.reply_sent == True).all()
+    replies_query = db.session.query(Comment.processed_at).join(Post).filter(Post.user_id == admin_id, Comment.processed_at >= start_date, Comment.reply_sent == True).all()
     for (pa,) in replies_query:
         if pa:
             date_str = pa.strftime("%Y-%m-%d")
@@ -53,7 +56,7 @@ def index():
                 replies_by_day[date_str] += 1
                 
     # Messages Count
-    messages_query = db.session.query(Message.sent_at).filter(Message.sent_at >= start_date, Message.status == 'SUCCESS').all()
+    messages_query = db.session.query(Message.sent_at).join(Post).filter(Post.user_id == admin_id, Message.sent_at >= start_date, Message.status == 'SUCCESS').all()
     for (sa,) in messages_query:
         if sa:
             date_str = sa.strftime("%Y-%m-%d")
@@ -81,10 +84,12 @@ def index():
 @dashboard_bp.route('/api/stats')
 @admin_required
 def stats_api():
-    total_monitored = Post.query.filter_by(is_monitored=True).count()
-    total_comments = Comment.query.count()
-    total_replies = Comment.query.filter_by(reply_sent=True).count()
-    total_messages = Message.query.filter_by(status='SUCCESS').count()
+    from flask import session
+    admin_id = session.get('admin_id')
+    total_monitored = Post.query.filter_by(is_monitored=True, user_id=admin_id).count()
+    total_comments = Comment.query.join(Post).filter(Post.user_id == admin_id).count()
+    total_replies = Comment.query.join(Post).filter(Post.user_id == admin_id, Comment.reply_sent == True).count()
+    total_messages = Message.query.join(Post).filter(Post.user_id == admin_id, Message.status == 'SUCCESS').count()
     total_webhooks = WebhookLog.query.count()
     
     return jsonify({
@@ -102,8 +107,10 @@ def view_logs():
     log_filter = request.args.get('filter', 'all')
     page = request.args.get('page', 1, type=int)
     per_page = 20
+    from flask import session
+    admin_id = session.get('admin_id')
     
-    query = ActivityLog.query
+    query = ActivityLog.query.filter_by(admin_id=admin_id)
     
     if log_filter == 'success':
         query = query.filter_by(status='SUCCESS')
@@ -123,8 +130,10 @@ def view_logs():
 @admin_required
 def export_logs():
     log_filter = request.args.get('filter', 'all')
+    from flask import session
+    admin_id = session.get('admin_id')
     
-    query = ActivityLog.query
+    query = ActivityLog.query.filter_by(admin_id=admin_id)
     if log_filter == 'success':
         query = query.filter_by(status='SUCCESS')
     elif log_filter == 'failed':
@@ -172,6 +181,9 @@ def status():
 @admin_required
 def api_status():
     """Compiles health metrics for database, Meta API connection, webhook, and tunnel."""
+    from flask import session
+    admin_id = session.get('admin_id')
+    
     # 1. Database Status
     db_ok = False
     try:
@@ -184,11 +196,11 @@ def api_status():
     # 2. Meta Facebook API Status
     fb_ok = False
     fb_details = "Token / Page ID missing"
-    token = Setting.get("page_access_token")
-    page_id = Setting.get("page_id")
+    token = Setting.get("page_access_token", user_id=admin_id)
+    page_id = Setting.get("page_id", user_id=admin_id)
     
     if token and page_id:
-        api = FacebookApiService()
+        api = FacebookApiService(page_access_token=token, page_id=page_id)
         success, msg = api.test_connection()
         if success:
             fb_ok = True

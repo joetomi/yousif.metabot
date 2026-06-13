@@ -88,6 +88,13 @@
                     <i class="fa-brands fa-facebook-messenger"></i> {{ t.messenger_bot }}
                 </a>
             </li>
+            {% if is_developer %}
+            <li class="{% if request.path.startswith('/developer') %}active{% endif %}">
+                <a href="{{ url_for('developer.list_users') }}">
+                    <i class="fa-solid fa-users-gear text-info"></i> {{ t.users_management }}
+                </a>
+            </li>
+            {% endif %}
             <li class="{% if request.path == '/logs' %}active{% endif %}">
                 <a href="{{ url_for('dashboard.view_logs') }}">
                     <i class="fa-solid fa-list-check"></i> {{ t.logs }}

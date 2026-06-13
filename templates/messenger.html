@@ -49,6 +49,12 @@
                         </div>
                     </div>
                     
+                    <!-- Gemini API Key -->
+                    <div class="mb-4">
+                        <label for="gemini_api_key" class="form-label text-white font-weight-bold">{{ t.gemini_api_key_label }}</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" id="gemini_api_key" name="gemini_api_key" value="{{ gemini_api_key }}" placeholder="AI API Key (e.g. AIzaSy...)" style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important;">
+                    </div>
+                    
                     <!-- Tone selector -->
                     <div class="mb-4">
                         <label for="messenger_bot_tone" class="form-label text-white font-weight-bold">{{ t.messenger_tone_lbl }}</label>
@@ -69,6 +75,17 @@
                         <textarea class="form-control bg-dark text-white border-secondary" id="messenger_bot_kb" name="messenger_bot_kb" rows="8" placeholder="Enter subscriptions plans, address, contacts details..." style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important; font-size: 0.9em; line-height: 1.5; resize: vertical;">{{ bot_kb }}</textarea>
                         <div class="form-text text-secondary mt-2 small">
                             <i class="fa-solid fa-circle-info me-1"></i> {{ t.messenger_kb_desc }}
+                        </div>
+                    </div>
+                    
+                    <!-- Fallback Response -->
+                    <div class="mb-4">
+                        <label for="messenger_bot_fallback" class="form-label text-white font-weight-bold d-flex justify-content-between">
+                            <span>{{ t.messenger_fallback_lbl }}</span>
+                        </label>
+                        <textarea class="form-control bg-dark text-white border-secondary" id="messenger_bot_fallback" name="messenger_bot_fallback" rows="3" placeholder="Enter custom message to send if AI is offline..." style="background-color: #111827 !important; border-color: rgba(255,255,255,0.1) !important; font-size: 0.9em; resize: vertical;" required>{{ bot_fallback }}</textarea>
+                        <div class="form-text text-secondary mt-2 small">
+                            <i class="fa-solid fa-circle-info me-1"></i> {{ t.messenger_fallback_desc }}
                         </div>
                     </div>
                     

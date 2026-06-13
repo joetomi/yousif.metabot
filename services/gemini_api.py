@@ -3,7 +3,7 @@ import json
 import google.generativeai as genai
 from models import Setting
 
-def generate_ai_replies(comment_text, customer_name, post_text=None):
+def generate_ai_replies(comment_text, customer_name, post_text=None, user_id=None):
     """
     Calls Google Gemini API (gemini-1.5-flash) to generate:
       1. A public comment reply.
@@ -11,18 +11,19 @@ def generate_ai_replies(comment_text, customer_name, post_text=None):
     Returns (public_reply, private_reply) or None if disabled/failed.
     """
     # 1. Check if Gemini is enabled and key is present
-    enabled = Setting.get("gemini_enabled", "false")
+    enabled = Setting.get("gemini_enabled", "false", user_id=user_id)
     if str(enabled).lower() != "true":
         return None
         
-    api_key = Setting.get("gemini_api_key", "").strip()
+    api_key = Setting.get("gemini_api_key", "", user_id=user_id)
     if not api_key:
         print("Gemini API is enabled but GEMINI_API_KEY is empty.")
         return None
 
     system_instruction = Setting.get(
         "gemini_system_instruction", 
-        "أنت مساعد ذكي ولطيف، أجب على استفسار العميل باحترافية واختصار."
+        "أنت مساعد ذكي ولطيف، أجب على استفسار العميل باحترافية واختصار.",
+        user_id=user_id
     ).strip()
 
     try:
