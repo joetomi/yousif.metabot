@@ -35,9 +35,9 @@
                     
                     <!-- Form Actions -->
                     <div class="d-flex justify-content-between align-items-center border-top border-secondary pt-3">
-                        <a href="{{ url_for('settings.index') }}" class="btn btn-glass">
+                        <button type="button" class="btn btn-glass" onclick="window.close();">
                             <i class="fa-solid fa-arrow-left me-2"></i> {{ t.close_btn }}
-                        </a>
+                        </button>
                         <button type="submit" class="btn btn-emerald">
                             <i class="fa-solid fa-circle-check me-2"></i> {{ t.select_page_btn }}
                         </button>

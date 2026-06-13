@@ -13,10 +13,14 @@ settings_bp = Blueprint('settings', __name__)
 @settings_bp.route('/settings/facebook/login')
 @admin_required
 def facebook_login():
+    # Mark session context as popup flow
+    session['oauth_popup'] = True
+    
     app_id = Setting.get("app_id")
     if not app_id:
         flash("Please configure Facebook App ID first.", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
         
     redirect_uri = f"{request.url_root.rstrip('/')}/settings/facebook/callback"
     # Force HTTPS for production/external URLs to prevent "Insecure Login Blocked" from Meta
@@ -44,7 +48,8 @@ def facebook_callback():
     if error:
         error_desc = request.args.get('error_description', 'Authorization rejected')
         flash(f"Facebook Login error: {error_desc}", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
         
     code = request.args.get('code')
     state = request.args.get('state')
@@ -52,7 +57,8 @@ def facebook_callback():
     # Verify state to prevent CSRF
     if not state or state != session.get('oauth_state'):
         flash("Invalid state token. Possible CSRF attempt.", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
         
     session.pop('oauth_state', None)
     
@@ -66,7 +72,8 @@ def facebook_callback():
     
     if not app_id or not app_secret:
         flash("App ID or App Secret configuration missing.", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
         
     # 1. Exchange code for Short-lived User Access Token
     token_url = "https://graph.facebook.com/v19.0/oauth/access_token"
@@ -84,7 +91,8 @@ def facebook_callback():
         if 'error' in token_data:
             err_msg = token_data['error'].get('message', 'Failed to retrieve access token')
             flash(f"OAuth exchange failed: {err_msg}", "danger")
-            return redirect(url_for('dashboard.index'))
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
             
         short_user_token = token_data.get('access_token')
         
@@ -101,7 +109,8 @@ def facebook_callback():
         if 'error' in extend_data:
             err_msg = extend_data['error'].get('message', 'Failed to extend token')
             flash(f"Token extension failed: {err_msg}", "danger")
-            return redirect(url_for('dashboard.index'))
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
             
         long_user_token = extend_data.get('access_token')
         
@@ -113,12 +122,14 @@ def facebook_callback():
         if 'error' in pages_data:
             err_msg = pages_data['error'].get('message', 'Failed to retrieve pages')
             flash(f"Failed to fetch user pages: {err_msg}", "danger")
-            return redirect(url_for('dashboard.index'))
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
             
         pages_list = pages_data.get('data', [])
         if not pages_list:
             flash("No Facebook pages found for this user account.", "warning")
-            return redirect(url_for('dashboard.index'))
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
             
         # Store pages in session temporarily so the user can choose
         session['oauth_pages'] = [
@@ -135,7 +146,8 @@ def facebook_callback():
         
     except Exception as e:
         flash(f"Error during Facebook Login: {str(e)}", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
 
 @settings_bp.route('/settings/facebook/select', methods=['POST'])
 @admin_required
@@ -145,13 +157,15 @@ def facebook_select_page():
     
     if not page_id or not oauth_pages:
         flash("Invalid page selection or session expired.", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
         
     # Find the page in our stored list
     selected_page = next((p for p in oauth_pages if p['id'] == page_id), None)
     if not selected_page:
         flash("Selected page not found in session.", "danger")
-        return redirect(url_for('dashboard.index'))
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
         
     # Save settings to database
     Setting.set("page_id", selected_page['id'])
@@ -160,6 +174,7 @@ def facebook_select_page():
     
     # Clear pages from session
     session.pop('oauth_pages', None)
+    session.pop('oauth_popup', None)
     
     # Automatically try to subscribe page to webhooks
     sub_status_msg = ""
@@ -184,4 +199,4 @@ def facebook_select_page():
         sub_status_msg = f" (Warning: Webhook subscription error: {str(sub_ex)})"
         
     flash(f"Page '{selected_page['name']}' successfully connected!{sub_status_msg}", "success")
-    return redirect(url_for('dashboard.index'))
+    return render_template('close_popup.html')

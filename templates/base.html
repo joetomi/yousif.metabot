@@ -38,7 +38,7 @@
 </head>
 <body>
 
-    {% if session.get('admin_logged_in') %}
+    {% if session.get('admin_logged_in') and not session.get('oauth_popup') %}
     <!-- Sidebar Navigation -->
     <div class="sidebar">
         <div class="brand d-flex align-items-center p-3 pb-2">
@@ -55,7 +55,7 @@
                     {{ t.brand }} Connected
                 </div>
                 <div class="text-white font-weight-bold text-truncate small" style="font-size: 0.9em; max-width: 170px;" title="{{ page_name }}">{{ page_name }}</div>
-                <a href="{{ url_for('settings.facebook_login') }}" class="text-secondary small mt-1 hover-underline text-decoration-none" style="font-size: 0.75em; color: rgba(255,255,255,0.4) !important;">
+                <a href="{{ url_for('settings.facebook_login') }}" class="text-secondary small mt-1 hover-underline text-decoration-none fb-login-popup" style="font-size: 0.75em; color: rgba(255,255,255,0.4) !important;">
                     <i class="fa-brands fa-facebook me-1"></i> Change Page
                 </a>
             </div>
@@ -65,7 +65,7 @@
                     <span class="d-inline-block rounded-circle me-2" style="width: 8px; height: 8px; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
                     Not Connected
                 </div>
-                <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center py-2" style="font-size: 0.8em; background: #1877f2; border: none; font-weight: 600;">
+                <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center py-2 fb-login-popup" style="font-size: 0.8em; background: #1877f2; border: none; font-weight: 600;">
                     <i class="fa-brands fa-facebook me-2"></i> {{ t.connect_fb_btn }}
                 </a>
             </div>
@@ -113,7 +113,7 @@
     {% endif %}
 
     <!-- Main Content Container -->
-    <div class="main-content {% if not session.get('admin_logged_in') %}m-0 w-100{% endif %}">
+    <div class="main-content {% if not session.get('admin_logged_in') or session.get('oauth_popup') %}m-0 w-100{% endif %}">
         
         <!-- Flash Message Handler -->
         <div class="container-fluid p-0 mb-4">
@@ -172,6 +172,24 @@
     })();
     </script>
     {% endif %}
+    
+    <!-- Facebook Login Popup Interceptor -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const popupLinks = document.querySelectorAll('.fb-login-popup');
+        popupLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('href');
+                const width = 650;
+                const height = 750;
+                const left = (window.screen.width / 2) - (width / 2);
+                const top = (window.screen.height / 2) - (height / 2);
+                window.open(url, 'FacebookLoginPopup', `width=${width},height=${height},left=${left},top=${top},status=no,toolbar=no,menubar=no,location=no,resizable=yes,scrollbars=yes`);
+            });
+        });
+    });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>
