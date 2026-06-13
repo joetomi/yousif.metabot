@@ -48,6 +48,26 @@ def create_app():
             datetime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         )
 
+    # Server-side inactivity timeout (1 minute)
+    @app.before_request
+    def check_session_timeout():
+        from datetime import datetime, timedelta
+        session.permanent = True
+        if session.get('admin_logged_in'):
+            last_activity_str = session.get('last_activity')
+            now = datetime.utcnow()
+            if last_activity_str:
+                try:
+                    last_activity_time = datetime.strptime(last_activity_str, '%Y-%m-%d %H:%M:%S')
+                    # Log out if inactive for more than 1 minute
+                    if now - last_activity_time > timedelta(minutes=1):
+                        session.clear()
+                        from flask import flash
+                        flash('Session expired due to inactivity. Please log in again.', 'info')
+                except Exception:
+                    session.clear()
+            session['last_activity'] = now.strftime('%Y-%m-%d %H:%M:%S')
+
     # Initialize Database tables, seed default Admin, and verify setup
     with app.app_context():
         db.create_all()

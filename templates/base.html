@@ -102,6 +102,36 @@
     
     <!-- Main JS Operations -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    {% if session.get('admin_logged_in') %}
+    <!-- Auto-Logout due to 1-minute inactivity -->
+    <script>
+    (function() {
+        let inactivityTime = function() {
+            let time;
+            // Events that reset the inactivity timer
+            window.onload = resetTimer;
+            document.onmousemove = resetTimer;
+            document.onkeypress = resetTimer;
+            document.ontouchstart = resetTimer;
+            document.onclick = resetTimer;
+            document.onscroll = resetTimer;
+
+            function logout() {
+                window.location.href = "{{ url_for('auth.logout') }}";
+            }
+
+            function resetTimer() {
+                clearTimeout(time);
+                // 60000 milliseconds = 1 minute
+                time = setTimeout(logout, 60000);
+            }
+        };
+        inactivityTime();
+    })();
+    </script>
+    {% endif %}
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>
