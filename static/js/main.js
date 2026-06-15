@@ -1,16 +1,25 @@
 document.addEventListener("DOMContentLoaded", function () {
     // Mobile Sidebar Toggle
     const sidebar = document.querySelector(".sidebar");
-    const toggleBtn = document.querySelector(".sidebar-toggle");
+    const toggleBtns = document.querySelectorAll(".sidebar-toggle, .mobile-menu-toggle");
     
-    if (toggleBtn && sidebar) {
-        toggleBtn.addEventListener("click", function () {
-            sidebar.classList.toggle("open");
+    if (sidebar && toggleBtns.length > 0) {
+        toggleBtns.forEach(btn => {
+            btn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                sidebar.classList.toggle("open");
+            });
         });
         
         // Close sidebar if user clicks outside on mobile
         document.addEventListener("click", function (event) {
-            if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+            let clickedToggle = false;
+            toggleBtns.forEach(btn => {
+                if (btn.contains(event.target)) {
+                    clickedToggle = true;
+                }
+            });
+            if (!sidebar.contains(event.target) && !clickedToggle) {
                 sidebar.classList.remove("open");
             }
         });

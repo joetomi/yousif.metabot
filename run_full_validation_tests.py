@@ -1131,5 +1131,461 @@ class FacebookBotTestCase(unittest.TestCase):
             self.assertEqual(history[0].message_content, "مرحبا بك في الخاص")
             self.assertFalse(history[0].is_from_customer)
 
+    # 9. Verify Instagram Settings saving & retrieval
+    def test_instagram_settings_management(self):
+        """Verify saving and retrieving Instagram settings."""
+        self.login_admin()
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            
+        resp = self.client.post('/instagram/save-settings', data=dict(
+            instagram_bot_enabled='on',
+            instagram_gemini_enabled='on',
+            instagram_bot_tone='friendly',
+            instagram_bot_kb='Instagram Knowledge',
+            instagram_gemini_api_key='ig_gemini_key',
+            instagram_bot_fallback='IG fallback message'
+        ), follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'Instagram settings saved successfully', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("instagram_bot_enabled", user_id=client_id), "true")
+            self.assertEqual(Setting.get("instagram_gemini_enabled", user_id=client_id), "true")
+            self.assertEqual(Setting.get("instagram_bot_tone", user_id=client_id), "friendly")
+            self.assertEqual(Setting.get("instagram_bot_kb", user_id=client_id), "Instagram Knowledge")
+            self.assertEqual(Setting.get("instagram_gemini_api_key", user_id=client_id), "ig_gemini_key")
+            self.assertEqual(Setting.get("instagram_bot_fallback", user_id=client_id), "IG fallback message")
+
+    # 10. Verify WhatsApp Settings saving & retrieval
+    def test_whatsapp_settings_management(self):
+        """Verify saving and retrieving WhatsApp settings."""
+        self.login_admin()
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            
+        resp = self.client.post('/whatsapp/save-settings', data=dict(
+            whatsapp_bot_enabled='true',
+            whatsapp_gemini_enabled='true',
+            whatsapp_bot_tone='formal',
+            whatsapp_bot_kb='WhatsApp Knowledge',
+            whatsapp_gemini_api_key='wa_gemini_key',
+            whatsapp_bot_fallback='WA fallback message'
+        ), follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'WhatsApp settings saved successfully', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("whatsapp_bot_enabled", user_id=client_id), "true")
+            self.assertEqual(Setting.get("whatsapp_gemini_enabled", user_id=client_id), "true")
+            self.assertEqual(Setting.get("whatsapp_bot_tone", user_id=client_id), "formal")
+            self.assertEqual(Setting.get("whatsapp_bot_kb", user_id=client_id), "WhatsApp Knowledge")
+            self.assertEqual(Setting.get("whatsapp_gemini_api_key", user_id=client_id), "wa_gemini_key")
+            self.assertEqual(Setting.get("whatsapp_bot_fallback", user_id=client_id), "WA fallback message")
+
+    # 11. Verify Add-Account manual connection/disconnection endpoints
+    def test_add_account_connections(self):
+        """Verify Instagram and WhatsApp manual connection and disconnection endpoints."""
+        self.login_admin()
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            
+        # Instagram Connect
+        resp = self.client.post('/settings/instagram/connect', data=dict(
+            instagram_page_id='ig_page_999',
+            instagram_access_token='ig_token_999'
+        ), follow_redirects=True)
+        self.assertIn(b'Instagram account connected successfully', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("instagram_page_id", user_id=client_id), "ig_page_999")
+            self.assertEqual(Setting.get("instagram_page_access_token", user_id=client_id), "ig_token_999")
+            self.assertEqual(Setting.get("instagram_bot_enabled", user_id=client_id), "true")
+            
+        # Instagram Disconnect
+        resp = self.client.post('/settings/instagram/disconnect', follow_redirects=True)
+        self.assertIn(b'Instagram account disconnected', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("instagram_page_id", user_id=client_id), "")
+            self.assertEqual(Setting.get("instagram_page_access_token", user_id=client_id), "")
+            self.assertEqual(Setting.get("instagram_bot_enabled", user_id=client_id), "false")
+            
+        # WhatsApp Connect
+        resp = self.client.post('/settings/whatsapp/connect', data=dict(
+            whatsapp_phone_number_id='wa_phone_999',
+            whatsapp_access_token='wa_token_999'
+        ), follow_redirects=True)
+        self.assertIn(b'WhatsApp account connected successfully', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("whatsapp_phone_number_id", user_id=client_id), "wa_phone_999")
+            self.assertEqual(Setting.get("whatsapp_access_token", user_id=client_id), "wa_token_999")
+            self.assertEqual(Setting.get("whatsapp_bot_enabled", user_id=client_id), "true")
+            
+        # WhatsApp Disconnect
+        resp = self.client.post('/settings/whatsapp/disconnect', follow_redirects=True)
+        self.assertIn(b'WhatsApp account disconnected', resp.data)
+        
+        with self.app.app_context():
+            self.assertEqual(Setting.get("whatsapp_phone_number_id", user_id=client_id), "")
+            self.assertEqual(Setting.get("whatsapp_access_token", user_id=client_id), "")
+            self.assertEqual(Setting.get("whatsapp_bot_enabled", user_id=client_id), "false")
+
+    # 12. Verify Webhook payload routing for Instagram and WhatsApp
+    @patch('services.scheduler.scheduler.add_job')
+    def test_webhook_instagram_and_whatsapp_routing(self, mock_add_job):
+        """Verify that incoming IG and WA webhook payloads register correct background jobs."""
+        app_secret = "test_secret"
+        
+        # Seed user settings so parser can link incoming page_id/phone_id to user_id
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("instagram_page_id", "ig_page_123", user_id=client_id)
+            Setting.set("whatsapp_phone_number_id", "wa_phone_123", user_id=client_id)
+            
+        # A. Instagram direct message payload
+        ig_msg_payload = {
+            "object": "instagram",
+            "entry": [{
+                "id": "ig_page_123",
+                "time": 16000000,
+                "messaging": [{
+                    "sender": {"id": "ig_customer_99"},
+                    "recipient": {"id": "ig_page_123"},
+                    "timestamp": 16000000,
+                    "message": {
+                        "mid": "ig_mid_999",
+                        "text": "Hello Instagram!"
+                    }
+                }]
+            }]
+        }
+        
+        payload_bytes = json.dumps(ig_msg_payload).encode()
+        sig = "sha256=" + hmac.new(app_secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+        resp = self.client.post('/webhook', data=payload_bytes, headers={'X-Hub-Signature-256': sig}, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_add_job.called)
+        
+        # Reset mock
+        mock_add_job.reset_mock()
+        
+        # B. Instagram comment payload
+        ig_comment_payload = {
+            "object": "instagram",
+            "entry": [{
+                "id": "ig_page_123",
+                "time": 16000000,
+                "changes": [{
+                    "field": "comments",
+                    "value": {
+                        "id": "ig_comment_999",
+                        "media": {"id": "ig_media_111"},
+                        "from": {"id": "ig_customer_99", "username": "ig_cust"},
+                        "text": "Cool pic!"
+                    }
+                }]
+            }]
+        }
+        payload_bytes = json.dumps(ig_comment_payload).encode()
+        sig = "sha256=" + hmac.new(app_secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+        resp = self.client.post('/webhook', data=payload_bytes, headers={'X-Hub-Signature-256': sig}, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_add_job.called)
+        
+        # Reset mock
+        mock_add_job.reset_mock()
+        
+        # C. WhatsApp message payload
+        wa_payload = {
+            "object": "whatsapp_business_account",
+            "entry": [{
+                "id": "wa_acc_123",
+                "changes": [{
+                    "field": "messages",
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "16505551111",
+                            "phone_number_id": "wa_phone_123"
+                        },
+                        "messages": [{
+                            "from": "15550260460",
+                            "id": "wa_msg_999",
+                            "timestamp": "16000000",
+                            "text": {
+                                "body": "Hello WhatsApp!"
+                            },
+                            "type": "text"
+                        }]
+                    }
+                }]
+            }]
+        }
+        payload_bytes = json.dumps(wa_payload).encode()
+        sig = "sha256=" + hmac.new(app_secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+        resp = self.client.post('/webhook', data=payload_bytes, headers={'X-Hub-Signature-256': sig}, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_add_job.called)
+
+    # 13. Verify Instagram comment replying job
+    @patch('services.instagram_processor.requests.post')
+    def test_instagram_comment_processor(self, mock_post):
+        """Verify that Instagram comment processing posts public replies and logs correctly."""
+        from services.instagram_processor import process_instagram_comment_job
+        
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true, "id":"ig_reply_123"}'
+        mock_post.return_value = mock_resp
+        
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("instagram_page_access_token", "fake_token", user_id=client_id)
+            Setting.set("instagram_page_id", "ig_page_123", user_id=client_id)
+            
+            post = Post(
+                id="ig_post_123",
+                message="Monitored post",
+                is_monitored=True,
+                user_id=client_id,
+                default_reply="شكراً لتعليقك انستقرام"
+            )
+            db.session.add(post)
+            db.session.commit()
+            
+        comment_data = {
+            "comment_id": "ig_comment_abc",
+            "post_id": "ig_post_123",
+            "user_id": "ig_cust_999",
+            "username": "ig_cust",
+            "message": "Awesome!",
+            "app_user_id": client_id
+        }
+        
+        process_instagram_comment_job(self.app, comment_data)
+        
+        # Verify Meta API call was made to replies endpoint
+        self.assertTrue(mock_post.called)
+        called_url = mock_post.call_args[0][0]
+        self.assertIn("ig_comment_abc/replies", called_url)
+
+    # 14. Verify Instagram direct messaging processing job (history, Gemini and spam)
+    @patch('services.instagram_processor.requests.post')
+    @patch('google.generativeai.GenerativeModel')
+    def test_instagram_message_processor(self, mock_generative_model, mock_post):
+        """Verify Instagram DM processor history, rate-limiting, FAQs, and Gemini execution."""
+        from services.instagram_processor import process_instagram_message_job
+        from models import InstagramChatHistory
+        
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true}'
+        mock_post.return_value = mock_resp
+        
+        mock_model = MagicMock()
+        mock_model.generate_content.return_value = MagicMock(text="This is an IG Gemini response.")
+        mock_generative_model.return_value = mock_model
+        
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("instagram_page_access_token", "fake_token", user_id=client_id)
+            Setting.set("instagram_page_id", "ig_page_123", user_id=client_id)
+            Setting.set("instagram_bot_enabled", "true", user_id=client_id)
+            Setting.set("instagram_gemini_enabled", "true", user_id=client_id)
+            Setting.set("instagram_gemini_api_key", "test_key", user_id=client_id)
+            Setting.set("instagram_bot_kb", "Our services", user_id=client_id)
+            Setting.set("instagram_bot_fallback", "الرسالة الاحتياطية لانستقرام", user_id=client_id)
+            
+            # Pre-seed one message in IG chat history
+            old_msg = InstagramChatHistory(
+                sender_id="ig_customer_77",
+                message_content="Prior question",
+                is_from_customer=True,
+                admin_id=client_id
+            )
+            db.session.add(old_msg)
+            db.session.commit()
+            
+        # Process new message
+        msg_details = {
+            "sender_id": "ig_customer_77",
+            "message_text": "New question",
+            "message_id": "ig_mid_1001",
+            "app_user_id": client_id
+        }
+        process_instagram_message_job(self.app, msg_details)
+        
+        # Verify Gemini prompt context includes history
+        called_args = mock_model.generate_content.call_args[0][0]
+        self.assertIn("Conversation History with this Customer", called_args)
+        self.assertIn("[Customer]: Prior question", called_args)
+        self.assertIn("New question", called_args)
+        
+        # Verify db history logged the reply
+        with self.app.app_context():
+            history = InstagramChatHistory.query.filter_by(sender_id="ig_customer_77").order_by(InstagramChatHistory.created_at.asc()).all()
+            self.assertEqual(len(history), 3)
+            self.assertEqual(history[0].message_content, "Prior question")
+            self.assertEqual(history[1].message_content, "New question")
+            self.assertEqual(history[2].message_content, "This is an IG Gemini response.")
+            
+        # Verify Spam detection
+        mock_model.generate_content.reset_mock()
+        with self.app.app_context():
+            # Pre-seed 5 customer DMs to trigger spam
+            for i in range(5):
+                spam_msg = InstagramChatHistory(
+                    sender_id="ig_spam_user",
+                    message_content=f"spam_{i}",
+                    is_from_customer=True,
+                    admin_id=client_id
+                )
+                db.session.add(spam_msg)
+            db.session.commit()
+            
+        msg_details_spam = {
+            "sender_id": "ig_spam_user",
+            "message_text": "spam_6",
+            "message_id": "ig_mid_spam_06",
+            "app_user_id": client_id
+        }
+        process_instagram_message_job(self.app, msg_details_spam)
+        
+        # Gemini should NOT be called for spam
+        mock_model.generate_content.assert_not_called()
+        
+        # Verify fallback response is recorded for spam user
+        with self.app.app_context():
+            history = InstagramChatHistory.query.filter_by(sender_id="ig_spam_user").order_by(InstagramChatHistory.created_at.asc()).all()
+            self.assertEqual(history[-1].message_content, "الرسالة الاحتياطية لانستقرام")
+            self.assertFalse(history[-1].is_from_customer)
+
+    # 15. Verify WhatsApp messaging processing job (history, Gemini and spam)
+    @patch('services.whatsapp_processor.requests.post')
+    @patch('google.generativeai.GenerativeModel')
+    def test_whatsapp_message_processor(self, mock_generative_model, mock_post):
+        """Verify WhatsApp message processor history, rate-limiting, FAQs, and Gemini execution."""
+        from services.whatsapp_processor import process_whatsapp_message_job
+        from models import WhatsAppChatHistory
+        
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true}'
+        mock_post.return_value = mock_resp
+        
+        mock_model = MagicMock()
+        mock_model.generate_content.return_value = MagicMock(text="This is a WA Gemini response.")
+        mock_generative_model.return_value = mock_model
+        
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("whatsapp_access_token", "fake_token", user_id=client_id)
+            Setting.set("whatsapp_phone_number_id", "wa_phone_123", user_id=client_id)
+            Setting.set("whatsapp_bot_enabled", "true", user_id=client_id)
+            Setting.set("whatsapp_gemini_enabled", "true", user_id=client_id)
+            Setting.set("whatsapp_gemini_api_key", "test_key", user_id=client_id)
+            Setting.set("whatsapp_bot_kb", "WA Services", user_id=client_id)
+            Setting.set("whatsapp_bot_fallback", "الرسالة الاحتياطية لواتساب", user_id=client_id)
+            
+            # Pre-seed one message in WA history
+            old_msg = WhatsAppChatHistory(
+                sender_id="wa_customer_77",
+                message_content="Prior WhatsApp text",
+                is_from_customer=True,
+                admin_id=client_id
+            )
+            db.session.add(old_msg)
+            db.session.commit()
+            
+        # Process new message
+        msg_details = {
+            "sender_id": "wa_customer_77",
+            "message_text": "New WA question",
+            "message_id": "wa_mid_1001",
+            "app_user_id": client_id
+        }
+        process_whatsapp_message_job(self.app, msg_details)
+        
+        # Verify Gemini prompt context includes history
+        called_args = mock_model.generate_content.call_args[0][0]
+        self.assertIn("Conversation History with this Customer", called_args)
+        self.assertIn("[Customer]: Prior WhatsApp text", called_args)
+        self.assertIn("New WA question", called_args)
+        
+        # Verify db history logged the reply
+        with self.app.app_context():
+            history = WhatsAppChatHistory.query.filter_by(sender_id="wa_customer_77").order_by(WhatsAppChatHistory.created_at.asc()).all()
+            self.assertEqual(len(history), 3)
+            self.assertEqual(history[0].message_content, "Prior WhatsApp text")
+            self.assertEqual(history[1].message_content, "New WA question")
+            self.assertEqual(history[2].message_content, "This is a WA Gemini response.")
+            
+        # Verify Spam detection
+        mock_model.generate_content.reset_mock()
+        with self.app.app_context():
+            # Pre-seed 5 customer DMs to trigger spam
+            for i in range(5):
+                spam_msg = WhatsAppChatHistory(
+                    sender_id="wa_spam_user",
+                    message_content=f"spam_{i}",
+                    is_from_customer=True,
+                    admin_id=client_id
+                )
+                db.session.add(spam_msg)
+            db.session.commit()
+            
+        msg_details_spam = {
+            "sender_id": "wa_spam_user",
+            "message_text": "spam_6",
+            "message_id": "wa_mid_spam_06",
+            "app_user_id": client_id
+        }
+        process_whatsapp_message_job(self.app, msg_details_spam)
+        
+        # Gemini should NOT be called for spam
+        mock_model.generate_content.assert_not_called()
+        
+        # Verify fallback response is recorded for spam user
+        with self.app.app_context():
+            history = WhatsAppChatHistory.query.filter_by(sender_id="wa_spam_user").order_by(WhatsAppChatHistory.created_at.asc()).all()
+            self.assertEqual(history[-1].message_content, "الرسالة الاحتياطية لواتساب")
+            self.assertFalse(history[-1].is_from_customer)
+
+    # 16. Verify test-gemini endpoints error messaging logic
+    @patch('google.generativeai.GenerativeModel')
+    def test_test_gemini_endpoints(self, mock_generative_model):
+        """Verify the test-gemini endpoint handling for Instagram and WhatsApp."""
+        self.login_admin()
+        
+        # A. Instagram Successful Connection
+        mock_model = MagicMock()
+        mock_model.generate_content.return_value = MagicMock(text="Connection OK")
+        mock_generative_model.return_value = mock_model
+        
+        resp = self.client.post('/instagram/test-gemini', 
+                                data=json.dumps({"gemini_api_key": "valid_key"}),
+                                content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        resp_json = json.loads(resp.data.decode('utf-8'))
+        self.assertIn("تم الاتصال بسيرفرات Gemini", resp_json["message"])
+        
+        # B. WhatsApp Quota Exceeded Exception
+        mock_model.generate_content.side_effect = Exception("Resource has exhausted enough quota (Quota Exceeded).")
+        resp = self.client.post('/whatsapp/test-gemini', 
+                                data=json.dumps({"gemini_api_key": "quota_key"}),
+                                content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        resp_json = json.loads(resp.data.decode('utf-8'))
+        self.assertIn("تم تجاوز الحصة المجانية", resp_json["message"])
+
 if __name__ == "__main__":
     unittest.main()

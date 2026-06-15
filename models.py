@@ -206,3 +206,34 @@ class MessengerChatHistory(db.Model):
         db.Index('idx_chat_history_sender_admin_created', 'sender_id', 'admin_id', 'created_at'),
     )
 
+
+class InstagramChatHistory(db.Model):
+    __tablename__ = 'instagram_chat_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.String(100), nullable=False)
+    message_content = db.Column(db.Text, nullable=False)
+    is_from_customer = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
+    
+    __table_args__ = (
+        db.Index('idx_ig_chat_history_sender_admin_created', 'sender_id', 'admin_id', 'created_at'),
+    )
+
+
+class WhatsAppChatHistory(db.Model):
+    __tablename__ = 'whatsapp_chat_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.String(100), nullable=False)
+    message_content = db.Column(db.Text, nullable=False)
+    is_from_customer = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
+    
+    __table_args__ = (
+        db.Index('idx_wa_chat_history_sender_admin_created', 'sender_id', 'admin_id', 'created_at'),
+    )
+
+

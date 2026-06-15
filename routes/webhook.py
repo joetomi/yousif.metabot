@@ -151,15 +151,12 @@ def handle_event():
                     item = val.get("item")
                     verb = val.get("verb")
                     
-                    # We process comments and updates (e.g. addition of comments)
-                    # "feed, comments, post updates"
                     if item == "comment" and verb == "add":
                         comment_id = val.get("comment_id")
                         post_id = val.get("post_id")
                         sender_id = val.get("from", {}).get("id")
                         sender_name = val.get("from", {}).get("name")
                         
-                        # Skip comments written by the page itself to prevent loops
                         if sender_id and str(sender_id) == str(page_id):
                             print(f"Skipping comment {comment_id} written by the page itself to prevent loop.")
                             continue
@@ -171,7 +168,6 @@ def handle_event():
                         if created_time_int:
                             created_time_str = datetime.utcfromtimestamp(created_time_int).strftime("%Y-%m-%dT%H:%M:%S+0000")
                             
-                        # Package comment details
                         comment_data = {
                             "comment_id": comment_id,
                             "post_id": post_id,
@@ -182,17 +178,15 @@ def handle_event():
                             "app_user_id": user_id
                         }
                         
-                        # Enqueue immediate processing task using APScheduler
                         app_ref = current_app._get_current_object()
                         scheduler.add_job(
                             func=process_comment_job,
-                            trigger='date',  # Run immediately once
+                            trigger='date',
                             args=[app_ref, comment_data],
                             id=f"process_comment_{comment_id}",
                             name=f"Process comment {comment_id} from {sender_name}",
                             replace_existing=True
                         )
-                        
                         print(f"Enqueued comment {comment_id} for processing.")
             
             # B. Handle direct Messenger messages
@@ -202,10 +196,8 @@ def handle_event():
                     recipient_id = messaging_event.get("recipient", {}).get("id")
                     page_id_stored = Setting.get("page_id", user_id=user_id)
                     
-                    # Skip messages sent by the page itself to prevent loop
                     if sender_id and sender_id != page_id_stored:
                         message_data = messaging_event.get("message", {})
-                        # Ignore echo messages and non-text messages
                         if "text" in message_data and not message_data.get("is_echo"):
                             message_text = message_data.get("text", "")
                             message_id = message_data.get("mid")
@@ -230,5 +222,155 @@ def handle_event():
                             )
                             print(f"Enqueued Messenger message {message_id} for processing.")
 
-    # 3. Return HTTP 200 immediately
+    elif data.get("object") == "instagram":
+        for entry in data.get("entry", []):
+            page_id = entry.get("id")
+            
+            user_setting = Setting.query.filter(
+                Setting.key == "instagram_page_id",
+                Setting.value == str(page_id),
+                Setting.user_id.isnot(None)
+            ).first()
+            
+            if not user_setting:
+                user_setting = Setting.query.filter_by(key="instagram_page_id", value=str(page_id)).first()
+                
+            user_id = None
+            if user_setting:
+                user_id = user_setting.user_id
+                
+            if not user_id:
+                from models import Admin
+                default_admin = Admin.query.filter_by(role='developer').first() or Admin.query.first()
+                if default_admin:
+                    user_id = default_admin.id
+                    
+            if not user_id:
+                continue
+                
+            # A. Handle Instagram Direct Messages
+            if "messaging" in entry:
+                for messaging_event in entry.get("messaging", []):
+                    sender_id = messaging_event.get("sender", {}).get("id")
+                    recipient_id = messaging_event.get("recipient", {}).get("id")
+                    page_id_stored = Setting.get("instagram_page_id", user_id=user_id)
+                    
+                    if sender_id and sender_id != page_id_stored:
+                        message_data = messaging_event.get("message", {})
+                        if "text" in message_data and not message_data.get("is_echo"):
+                            message_text = message_data.get("text", "")
+                            message_id = message_data.get("mid")
+                            
+                            msg_details = {
+                                "sender_id": sender_id,
+                                "message_text": message_text,
+                                "message_id": message_id,
+                                "timestamp": messaging_event.get("timestamp"),
+                                "app_user_id": user_id
+                            }
+                            
+                            from services.instagram_processor import process_instagram_message_job
+                            app_ref = current_app._get_current_object()
+                            scheduler.add_job(
+                                func=process_instagram_message_job,
+                                trigger='date',
+                                args=[app_ref, msg_details],
+                                id=f"process_ig_msg_{message_id}",
+                                name=f"Process IG message {message_id} from {sender_id}",
+                                replace_existing=True
+                            )
+                            print(f"Enqueued Instagram message {message_id} for processing.")
+
+            # B. Handle Instagram Comments
+            for change in entry.get("changes", []):
+                if change.get("field") == "comments":
+                    val = change.get("value", {})
+                    comment_id = val.get("id")
+                    media = val.get("media", {})
+                    post_id = media.get("id")
+                    sender_id = val.get("from", {}).get("id")
+                    sender_username = val.get("from", {}).get("username")
+                    message_text = val.get("text", "")
+                    
+                    if sender_id and str(sender_id) == str(page_id):
+                        continue
+                        
+                    comment_data = {
+                        "comment_id": comment_id,
+                        "post_id": f"ig_{post_id}" if post_id else None,
+                        "user_id": sender_id,
+                        "username": sender_username,
+                        "message": message_text,
+                        "app_user_id": user_id
+                    }
+                    
+                    from services.instagram_processor import process_instagram_comment_job
+                    app_ref = current_app._get_current_object()
+                    scheduler.add_job(
+                        func=process_instagram_comment_job,
+                        trigger='date',
+                        args=[app_ref, comment_data],
+                        id=f"process_ig_comment_{comment_id}",
+                        name=f"Process IG comment {comment_id} from {sender_username}",
+                        replace_existing=True
+                    )
+                    print(f"Enqueued Instagram comment {comment_id} for processing.")
+
+    elif data.get("object") == "whatsapp_business_account":
+        for entry in data.get("entry", []):
+            for change in entry.get("changes", []):
+                if change.get("field") == "messages":
+                    val = change.get("value", {})
+                    metadata = val.get("metadata", {})
+                    phone_number_id = metadata.get("phone_number_id")
+                    
+                    user_setting = Setting.query.filter(
+                        Setting.key == "whatsapp_phone_number_id",
+                        Setting.value == str(phone_number_id),
+                        Setting.user_id.isnot(None)
+                    ).first()
+                    
+                    if not user_setting:
+                        user_setting = Setting.query.filter_by(key="whatsapp_phone_number_id", value=str(phone_number_id)).first()
+                        
+                    user_id = None
+                    if user_setting:
+                        user_id = user_setting.user_id
+                        
+                    if not user_id:
+                        from models import Admin
+                        default_admin = Admin.query.filter_by(role='developer').first() or Admin.query.first()
+                        if default_admin:
+                            user_id = default_admin.id
+                            
+                    if not user_id:
+                        continue
+                        
+                    for message in val.get("messages", []):
+                        sender_id = message.get("from")
+                        message_id = message.get("id")
+                        msg_type = message.get("type")
+                        
+                        if msg_type == "text":
+                            message_text = message.get("text", {}).get("body", "")
+                            
+                            msg_details = {
+                                "sender_id": sender_id,
+                                "message_text": message_text,
+                                "message_id": message_id,
+                                "app_user_id": user_id
+                            }
+                            
+                            from services.whatsapp_processor import process_whatsapp_message_job
+                            app_ref = current_app._get_current_object()
+                            scheduler.add_job(
+                                func=process_whatsapp_message_job,
+                                trigger='date',
+                                args=[app_ref, msg_details],
+                                id=f"process_wa_msg_{message_id}",
+                                name=f"Process WA message {message_id} from {sender_id}",
+                                replace_existing=True
+                            )
+                            print(f"Enqueued WhatsApp message {message_id} for processing.")
+
     return jsonify({"status": "received"}), 200

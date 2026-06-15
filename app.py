@@ -34,6 +34,8 @@ def create_app():
     from routes.webhook import webhook_bp
     from routes.messenger import messenger_bp
     from routes.developer import developer_bp
+    from routes.instagram import instagram_bp
+    from routes.whatsapp import whatsapp_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -42,6 +44,8 @@ def create_app():
     app.register_blueprint(webhook_bp)
     app.register_blueprint(messenger_bp)
     app.register_blueprint(developer_bp)
+    app.register_blueprint(instagram_bp)
+    app.register_blueprint(whatsapp_bp)
     
     # Context Processor for Bilingual/Arabic RTL translations
     @app.context_processor
@@ -56,13 +60,30 @@ def create_app():
             admin = Admin.query.get(admin_id)
             if admin and admin.role == 'developer':
                 is_developer = True
+        fb_connected = False
+        ig_connected = False
+        wa_connected = False
+        if admin_id and not is_developer:
+            page_id = Setting.get("page_id", "", user_id=admin_id)
+            if page_id and page_id.strip():
+                fb_connected = True
+            instagram_page_id = Setting.get("instagram_page_id", "", user_id=admin_id)
+            if instagram_page_id and instagram_page_id.strip():
+                ig_connected = True
+            whatsapp_phone_number_id = Setting.get("whatsapp_phone_number_id", "", user_id=admin_id)
+            if whatsapp_phone_number_id and whatsapp_phone_number_id.strip():
+                wa_connected = True
+                
         return dict(
             lang=lang,
             t=translations[lang],
             datetime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
             page_name=Setting.get("page_name", "", user_id=admin_id),
             page_id=Setting.get("page_id", "", user_id=admin_id),
-            is_developer=is_developer
+            is_developer=is_developer,
+            fb_connected=fb_connected,
+            ig_connected=ig_connected,
+            wa_connected=wa_connected
         )
 
     # Server-side inactivity timeout (30 min for dev, 10 min for user)

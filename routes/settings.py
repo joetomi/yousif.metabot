@@ -214,3 +214,132 @@ def facebook_select_page():
         
     flash(f"Page '{selected_page['name']}' successfully connected!{sub_status_msg}", "success")
     return render_template('close_popup.html')
+
+
+@settings_bp.route('/settings/add-account', methods=['GET'])
+@admin_required
+def add_account_page():
+    admin_id = session.get('admin_id')
+    
+    # Check current connections
+    fb_connected = False
+    page_name = Setting.get("page_name", user_id=admin_id)
+    page_id = Setting.get("page_id", user_id=admin_id)
+    if page_id and page_id.strip():
+        fb_connected = True
+        
+    ig_connected = False
+    instagram_page_id = Setting.get("instagram_page_id", user_id=admin_id)
+    if instagram_page_id and instagram_page_id.strip():
+        ig_connected = True
+        
+    wa_connected = False
+    whatsapp_phone_number_id = Setting.get("whatsapp_phone_number_id", user_id=admin_id)
+    if whatsapp_phone_number_id and whatsapp_phone_number_id.strip():
+        wa_connected = True
+        
+    # Get tunnel_url and verify_token to display
+    tunnel_url = Setting.get("tunnel_url", "https://yousif-metabot.onrender.com")
+    verify_token = Setting.get("verify_token", "my_verify_token_123")
+    
+    return render_template(
+        'add_account.html',
+        fb_connected=fb_connected,
+        page_name=page_name,
+        ig_connected=ig_connected,
+        instagram_page_id=instagram_page_id,
+        wa_connected=wa_connected,
+        whatsapp_phone_number_id=whatsapp_phone_number_id,
+        tunnel_url=tunnel_url,
+        verify_token=verify_token
+    )
+
+@settings_bp.route('/settings/instagram/connect', methods=['POST'])
+@admin_required
+def connect_instagram():
+    admin_id = session.get('admin_id')
+    instagram_page_id = request.form.get("instagram_page_id", "").strip()
+    instagram_access_token = request.form.get("instagram_access_token", "").strip()
+    
+    if not instagram_page_id or not instagram_access_token:
+        flash("Both Instagram Page ID and Access Token are required.", "danger")
+        return redirect(url_for('settings.add_account_page'))
+        
+    # Check if page is already connected by another client
+    exists = Setting.query.filter(
+        Setting.key == "instagram_page_id",
+        Setting.value == instagram_page_id,
+        Setting.user_id != admin_id
+    ).first()
+    if exists:
+        flash("حساب انستجرام هذا مرتبط بالفعل بحساب عميل آخر.", "danger")
+        return redirect(url_for('settings.add_account_page'))
+        
+    Setting.set("instagram_page_id", instagram_page_id, user_id=admin_id)
+    Setting.set("instagram_page_access_token", instagram_access_token, user_id=admin_id)
+    # Enable Instagram bot automatically
+    Setting.set("instagram_bot_enabled", "true", user_id=admin_id)
+    
+    flash("Instagram account connected successfully!", "success")
+    return redirect(url_for('settings.add_account_page'))
+
+@settings_bp.route('/settings/instagram/disconnect', methods=['POST'])
+@admin_required
+def disconnect_instagram():
+    admin_id = session.get('admin_id')
+    Setting.set("instagram_page_id", "", user_id=admin_id)
+    Setting.set("instagram_page_access_token", "", user_id=admin_id)
+    Setting.set("instagram_bot_enabled", "false", user_id=admin_id)
+    flash("Instagram account disconnected.", "info")
+    return redirect(url_for('settings.add_account_page'))
+
+@settings_bp.route('/settings/whatsapp/connect', methods=['POST'])
+@admin_required
+def connect_whatsapp():
+    admin_id = session.get('admin_id')
+    whatsapp_phone_number_id = request.form.get("whatsapp_phone_number_id", "").strip()
+    whatsapp_access_token = request.form.get("whatsapp_access_token", "").strip()
+    
+    if not whatsapp_phone_number_id or not whatsapp_access_token:
+        flash("Both Phone Number ID and Access Token are required.", "danger")
+        return redirect(url_for('settings.add_account_page'))
+        
+    # Check if phone number is connected by another client
+    exists = Setting.query.filter(
+        Setting.key == "whatsapp_phone_number_id",
+        Setting.value == whatsapp_phone_number_id,
+        Setting.user_id != admin_id
+    ).first()
+    if exists:
+        flash("حساب واتساب هذا مرتبط بالفعل بحساب عميل آخر.", "danger")
+        return redirect(url_for('settings.add_account_page'))
+        
+    Setting.set("whatsapp_phone_number_id", whatsapp_phone_number_id, user_id=admin_id)
+    Setting.set("whatsapp_access_token", whatsapp_access_token, user_id=admin_id)
+    # Enable WhatsApp bot automatically
+    Setting.set("whatsapp_bot_enabled", "true", user_id=admin_id)
+    
+    flash("WhatsApp account connected successfully!", "success")
+    return redirect(url_for('settings.add_account_page'))
+
+@settings_bp.route('/settings/whatsapp/disconnect', methods=['POST'])
+@admin_required
+def disconnect_whatsapp():
+    admin_id = session.get('admin_id')
+    Setting.set("whatsapp_phone_number_id", "", user_id=admin_id)
+    Setting.set("whatsapp_access_token", "", user_id=admin_id)
+    Setting.set("whatsapp_bot_enabled", "false", user_id=admin_id)
+    flash("WhatsApp account disconnected.", "info")
+    return redirect(url_for('settings.add_account_page'))
+
+@settings_bp.route('/settings/facebook/disconnect', methods=['POST'])
+@admin_required
+def disconnect_facebook():
+    admin_id = session.get('admin_id')
+    Setting.set("page_id", "", user_id=admin_id)
+    Setting.set("page_access_token", "", user_id=admin_id)
+    Setting.set("page_name", "", user_id=admin_id)
+    Setting.set("messenger_bot_enabled", "false", user_id=admin_id)
+    flash("Facebook page disconnected.", "info")
+    return redirect(url_for('settings.add_account_page'))
+

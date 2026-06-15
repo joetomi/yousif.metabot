@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}إعدادات انستجرام - Yousif Bot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12 text-center text-md-start">
+            <h2 class="text-white fw-bold mb-2">إعدادات الرد التلقائي في انستجرام</h2>
+            <p class="text-secondary">اضبط إعدادات المجيب الآلي وقاعدة المعرفة ونموذج الذكاء الاصطناعي لحساب انستجرام الخاص بك.</p>
+        </div>
+    </div>
+
+    <form action="{{ url_for('instagram.save_settings') }}" method="POST" id="instagram-settings-form">
+        <div class="row">
+            <!-- Settings & Knowledge Base -->
+            <div class="col-lg-8 col-12 mb-4">
+                <div class="glass-card p-4 h-100 d-flex flex-column gap-3">
+                    <h4 class="text-white fw-bold mb-3 border-bottom border-secondary pb-2">Settings & Knowledge Base</h4>
+                    
+                    <!-- Toggle switches -->
+                    <div class="d-flex flex-column gap-3 mb-4">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <label class="form-check-label text-white fw-medium">تفعيل الرد التلقائي في انستجرام</label>
+                            <div class="form-check form-switch m-0 p-0" style="font-size: 1.5rem;">
+                                <input class="form-check-input" type="checkbox" name="instagram_bot_enabled" value="true" {% if bot_enabled == 'true' %}checked{% endif %}>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between">
+                            <label class="form-check-label text-white fw-medium">تفعيل ذكاء Gemini للردود تلقائياً</label>
+                            <div class="form-check form-switch m-0 p-0" style="font-size: 1.5rem;">
+                                <input class="form-check-input" type="checkbox" name="instagram_gemini_enabled" id="instagram_gemini_enabled" value="true" {% if gemini_enabled == 'true' %}checked{% endif %}>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gemini API Key Input -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">مفتاح Gemini API Key</label>
+                        <div class="input-group">
+                            <input type="password" name="instagram_gemini_api_key" id="instagram_gemini_api_key_input" class="form-control glass-input" value="{{ gemini_api_key or '' }}" placeholder="أدخل مفتاح الـ API...">
+                            <button type="button" class="btn btn-glass" id="test-gemini-btn">اختبار الاتصال</button>
+                        </div>
+                        <div id="gemini-test-result" class="mt-2" style="font-size: 0.85em;"></div>
+                    </div>
+
+                    <!-- Bot Tone -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">أسلوب رد الذكاء الاصطناعي</label>
+                        <select name="instagram_bot_tone" class="form-select glass-input">
+                            <option value="professional" {% if bot_tone == 'professional' %}selected{% endif %}>ودي وعامي واحترافي</option>
+                            <option value="friendly" {% if bot_tone == 'friendly' %}selected{% endif %}>ودي وبشوش</option>
+                            <option value="formal" {% if bot_tone == 'formal' %}selected{% endif %}>رسمي وفصحى</option>
+                            <option value="casual" {% if bot_tone == 'casual' %}selected{% endif %}>عامي وبسيط</option>
+                        </select>
+                    </div>
+
+                    <!-- Knowledge Base -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">قاعدة المعرفة (تفاصيل خدماتك، اشتراكاتك وأسعارك)</label>
+                        <textarea name="instagram_bot_kb" rows="6" class="form-control glass-input" placeholder="أدخل هنا معلومات شركتك، الأسعار، الخدمات، وسيستخدمها الذكاء الاصطناعي للرد على العملاء بشكل صارم...">{{ bot_kb or '' }}</textarea>
+                    </div>
+
+                    <!-- Fallback Message -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">الرد الاحتياطي (عند توقف الذكاء الاصطناعي)</label>
+                        <input type="text" name="instagram_bot_fallback" class="form-control glass-input" value="{{ bot_fallback or '' }}" placeholder="شكراً لتواصلك معنا...">
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-emerald w-100 py-2 fw-bold"><i class="fa-solid fa-floppy-disk me-1"></i> حفظ الإعدادات</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IG Monitored Posts column -->
+            <div class="col-lg-4 col-12">
+                <div class="glass-card p-4">
+                    <h4 class="text-white fw-bold mb-3 border-bottom border-secondary pb-2">الردود على منشورات انستجرام</h4>
+                    <p class="text-secondary small">قم بتفعيل مراقبة منشورات انستجرام للرد التلقائي الفوري على تعليقات العملاء.</p>
+                    
+                    <a href="{{ url_for('posts.index') }}" class="btn btn-glass w-100 py-2 fw-semibold text-white">
+                        <i class="fa-solid fa-newspaper me-1"></i> إدارة منشورات التعليقات
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const testBtn = document.getElementById("test-gemini-btn");
+    const keyInput = document.getElementById("instagram_gemini_api_key_input");
+    const resultDiv = document.getElementById("gemini-test-result");
+
+    if (testBtn && keyInput && resultDiv) {
+        testBtn.addEventListener("click", function() {
+            const apiKey = keyInput.value.trim();
+            if (!apiKey) {
+                resultDiv.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> يرجى إدخال مفتاح API أولاً.</span>';
+                return;
+            }
+
+            testBtn.disabled = true;
+            const origText = testBtn.innerText;
+            testBtn.innerText = "جاري الفحص...";
+            resultDiv.innerHTML = '<span class="text-info"><i class="fa-solid fa-spinner fa-spin me-1"></i> جاري محاولة الاتصال بالذكاء الاصطناعي...</span>';
+
+            fetch("{{ url_for('instagram.test_gemini') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ gemini_api_key: apiKey })
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(res => {
+                testBtn.disabled = false;
+                testBtn.innerText = origText;
+                
+                if (res.ok) {
+                    resultDiv.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ${res.data.message}</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> ${res.data.message}</span>`;
+                }
+            })
+            .catch(err => {
+                testBtn.disabled = false;
+                testBtn.innerText = origText;
+                resultDiv.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> حدث خطأ في الشبكة أثناء الاتصال بالخادم.</span>';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
