@@ -216,6 +216,177 @@ def facebook_select_page():
     return render_template('close_popup.html')
 
 
+@settings_bp.route('/settings/instagram/login')
+@admin_required
+def instagram_login():
+    session['oauth_popup'] = True
+    
+    app_id = "4375759946087510"
+    
+    redirect_uri = f"{request.url_root.rstrip('/')}/settings/instagram/callback"
+    if not request.host.startswith('localhost') and not request.host.startswith('127.0.0.1'):
+        if redirect_uri.startswith('http://'):
+            redirect_uri = redirect_uri.replace('http://', 'https://', 1)
+            
+    state = secrets.token_hex(16)
+    session['oauth_state'] = state
+    
+    params = {
+        'client_id': app_id,
+        'redirect_uri': redirect_uri,
+        'state': state,
+        'scope': 'instagram_basic,instagram_manage_messages,instagram_manage_comments,pages_show_list,pages_read_engagement'
+    }
+    fb_oauth_url = f"https://www.facebook.com/v19.0/dialog/oauth?{urlencode(params)}"
+    return redirect(fb_oauth_url)
+
+@settings_bp.route('/settings/instagram/callback')
+@admin_required
+def instagram_callback():
+    error = request.args.get('error')
+    if error:
+        error_desc = request.args.get('error_description', 'Authorization rejected')
+        flash(f"Instagram Login error: {error_desc}", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+        
+    code = request.args.get('code')
+    state = request.args.get('state')
+    
+    if not state or state != session.get('oauth_state'):
+        flash("Invalid state token. Possible CSRF attempt.", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+        
+    session.pop('oauth_state', None)
+    
+    app_id = "4375759946087510"
+    app_secret = "70453b89701902d9a57ae02ec0568b9a"
+    
+    redirect_uri = f"{request.url_root.rstrip('/')}/settings/instagram/callback"
+    if not request.host.startswith('localhost') and not request.host.startswith('127.0.0.1'):
+        if redirect_uri.startswith('http://'):
+            redirect_uri = redirect_uri.replace('http://', 'https://', 1)
+            
+    token_url = "https://graph.facebook.com/v19.0/oauth/access_token"
+    token_params = {
+        'client_id': app_id,
+        'redirect_uri': redirect_uri,
+        'client_secret': app_secret,
+        'code': code
+    }
+    
+    try:
+        token_res = requests.get(token_url, params=token_params)
+        token_data = token_res.json()
+        
+        if 'error' in token_data:
+            err_msg = token_data['error'].get('message', 'Failed to retrieve access token')
+            flash(f"OAuth exchange failed: {err_msg}", "danger")
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
+            
+        short_user_token = token_data.get('access_token')
+        
+        # Exchange for long-lived User Token
+        extend_params = {
+            'grant_type': 'fb_exchange_token',
+            'client_id': app_id,
+            'client_secret': app_secret,
+            'fb_exchange_token': short_user_token
+        }
+        extend_res = requests.get(token_url, params=extend_params)
+        extend_data = extend_res.json()
+        
+        if 'error' in extend_data:
+            err_msg = extend_data['error'].get('message', 'Failed to extend token')
+            flash(f"Token extension failed: {err_msg}", "danger")
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
+            
+        long_user_token = extend_data.get('access_token')
+        
+        # Query pages with linked instagram business accounts
+        pages_url = "https://graph.facebook.com/v19.0/me/accounts"
+        pages_params = {
+            'fields': 'id,name,access_token,instagram_business_account{id,name,username}'
+        }
+        pages_res = requests.get(pages_url, params=pages_params, headers={"Authorization": f"Bearer {long_user_token}"})
+        pages_data = pages_res.json()
+        
+        if 'error' in pages_data:
+            err_msg = pages_data['error'].get('message', 'Failed to retrieve accounts')
+            flash(f"Failed to fetch accounts: {err_msg}", "danger")
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
+            
+        pages_list = pages_data.get('data', [])
+        ig_accounts = []
+        for page in pages_list:
+            ig_biz = page.get('instagram_business_account')
+            if ig_biz:
+                ig_accounts.append({
+                    'page_id': page.get('id'),
+                    'page_name': page.get('name'),
+                    'access_token': page.get('access_token'),
+                    'instagram_page_id': ig_biz.get('id'),
+                    'instagram_username': ig_biz.get('username') or ig_biz.get('name') or "Instagram Business Account"
+                })
+                
+        if not ig_accounts:
+            flash("لم يتم العثور على أي حسابات انستجرام للنشاط (Instagram Business Accounts) مرتبطة بصفحاتك.", "warning")
+            session.pop('oauth_popup', None)
+            return render_template('close_popup.html')
+            
+        session['oauth_instagram_accounts'] = ig_accounts
+        return render_template('select_instagram.html', accounts=ig_accounts)
+        
+    except Exception as e:
+        flash(f"Error during Instagram Login: {str(e)}", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+
+@settings_bp.route('/settings/instagram/select', methods=['POST'])
+@admin_required
+def instagram_select_account():
+    instagram_page_id = request.form.get('instagram_page_id')
+    oauth_accounts = session.get('oauth_instagram_accounts')
+    
+    if not instagram_page_id or not oauth_accounts:
+        flash("Invalid selection or session expired.", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+        
+    selected = next((a for a in oauth_accounts if a['instagram_page_id'] == instagram_page_id), None)
+    if not selected:
+        flash("Selected Instagram account not found in session.", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+        
+    current_user_id = session.get('admin_id')
+    exists = Setting.query.filter(
+        Setting.key == "instagram_page_id",
+        Setting.value == selected['instagram_page_id'],
+        Setting.user_id != current_user_id
+    ).first()
+    if exists:
+        flash("حساب انستجرام هذا مرتبط بالفعل بحساب عميل آخر.", "danger")
+        session.pop('oauth_instagram_accounts', None)
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
+        
+    Setting.set("instagram_page_id", selected['instagram_page_id'], user_id=current_user_id)
+    Setting.set("instagram_page_access_token", selected['access_token'], user_id=current_user_id)
+    Setting.set("instagram_bot_enabled", "true", user_id=current_user_id)
+    Setting.set("instagram_username", selected['instagram_username'], user_id=current_user_id)
+    
+    session.pop('oauth_instagram_accounts', None)
+    session.pop('oauth_popup', None)
+    
+    flash(f"Instagram Account '@{selected['instagram_username']}' connected successfully!", "success")
+    return render_template('close_popup.html')
+
+
 @settings_bp.route('/settings/add-account', methods=['GET'])
 @admin_required
 def add_account_page():
@@ -230,6 +401,7 @@ def add_account_page():
         
     ig_connected = False
     instagram_page_id = Setting.get("instagram_page_id", user_id=admin_id)
+    instagram_username = Setting.get("instagram_username", user_id=admin_id)
     if instagram_page_id and instagram_page_id.strip():
         ig_connected = True
         
@@ -248,40 +420,14 @@ def add_account_page():
         page_name=page_name,
         ig_connected=ig_connected,
         instagram_page_id=instagram_page_id,
+        instagram_username=instagram_username,
         wa_connected=wa_connected,
         whatsapp_phone_number_id=whatsapp_phone_number_id,
         tunnel_url=tunnel_url,
         verify_token=verify_token
     )
 
-@settings_bp.route('/settings/instagram/connect', methods=['POST'])
-@admin_required
-def connect_instagram():
-    admin_id = session.get('admin_id')
-    instagram_page_id = request.form.get("instagram_page_id", "").strip()
-    instagram_access_token = request.form.get("instagram_access_token", "").strip()
-    
-    if not instagram_page_id or not instagram_access_token:
-        flash("Both Instagram Page ID and Access Token are required.", "danger")
-        return redirect(url_for('settings.add_account_page'))
-        
-    # Check if page is already connected by another client
-    exists = Setting.query.filter(
-        Setting.key == "instagram_page_id",
-        Setting.value == instagram_page_id,
-        Setting.user_id != admin_id
-    ).first()
-    if exists:
-        flash("حساب انستجرام هذا مرتبط بالفعل بحساب عميل آخر.", "danger")
-        return redirect(url_for('settings.add_account_page'))
-        
-    Setting.set("instagram_page_id", instagram_page_id, user_id=admin_id)
-    Setting.set("instagram_page_access_token", instagram_access_token, user_id=admin_id)
-    # Enable Instagram bot automatically
-    Setting.set("instagram_bot_enabled", "true", user_id=admin_id)
-    
-    flash("Instagram account connected successfully!", "success")
-    return redirect(url_for('settings.add_account_page'))
+
 
 @settings_bp.route('/settings/instagram/disconnect', methods=['POST'])
 @admin_required
@@ -289,6 +435,7 @@ def disconnect_instagram():
     admin_id = session.get('admin_id')
     Setting.set("instagram_page_id", "", user_id=admin_id)
     Setting.set("instagram_page_access_token", "", user_id=admin_id)
+    Setting.set("instagram_username", "", user_id=admin_id)
     Setting.set("instagram_bot_enabled", "false", user_id=admin_id)
     flash("Instagram account disconnected.", "info")
     return redirect(url_for('settings.add_account_page'))

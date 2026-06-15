@@ -1193,16 +1193,26 @@ class FacebookBotTestCase(unittest.TestCase):
             client_admin = Admin.query.filter_by(username='admin').first()
             client_id = client_admin.id
             
-        # Instagram Connect
-        resp = self.client.post('/settings/instagram/connect', data=dict(
-            instagram_page_id='ig_page_999',
-            instagram_access_token='ig_token_999'
+        # Instagram Connect Simulation
+        with self.client.session_transaction() as sess:
+            sess['oauth_instagram_accounts'] = [{
+                'page_id': 'fb_page_123',
+                'page_name': 'My Page',
+                'access_token': 'ig_token_999',
+                'instagram_page_id': 'ig_page_999',
+                'instagram_username': 'ig_user_999'
+            }]
+            
+        resp = self.client.post('/settings/instagram/select', data=dict(
+            instagram_page_id='ig_page_999'
         ), follow_redirects=True)
-        self.assertIn(b'Instagram account connected successfully', resp.data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"Updating Dashboard", resp.data)
         
         with self.app.app_context():
             self.assertEqual(Setting.get("instagram_page_id", user_id=client_id), "ig_page_999")
             self.assertEqual(Setting.get("instagram_page_access_token", user_id=client_id), "ig_token_999")
+            self.assertEqual(Setting.get("instagram_username", user_id=client_id), "ig_user_999")
             self.assertEqual(Setting.get("instagram_bot_enabled", user_id=client_id), "true")
             
         # Instagram Disconnect
@@ -1212,6 +1222,7 @@ class FacebookBotTestCase(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(Setting.get("instagram_page_id", user_id=client_id), "")
             self.assertEqual(Setting.get("instagram_page_access_token", user_id=client_id), "")
+            self.assertEqual(Setting.get("instagram_username", user_id=client_id), "")
             self.assertEqual(Setting.get("instagram_bot_enabled", user_id=client_id), "false")
             
         # WhatsApp Connect
@@ -1586,6 +1597,55 @@ class FacebookBotTestCase(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
         resp_json = json.loads(resp.data.decode('utf-8'))
         self.assertIn("تم تجاوز الحصة المجانية", resp_json["message"])
+
+    # 17. Verify Instagram OAuth login and callback popup routing
+    @patch('routes.settings.requests.get')
+    def test_instagram_oauth_login_callback(self, mock_get):
+        """Verify Instagram login URL redirection and OAuth callback behavior."""
+        self.login_admin()
+        
+        # A. Login redirect
+        resp = self.client.get('/settings/instagram/login')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("facebook.com/v19.0/dialog/oauth", resp.headers['Location'])
+        self.assertIn("instagram_basic", resp.headers['Location'])
+        
+        # B. Callback successful exchange
+        # Mock token exchange first
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "user_token_123"}
+        
+        # Mock long-lived token exchange second
+        mock_extend_resp = MagicMock()
+        mock_extend_resp.json.return_value = {"access_token": "long_user_token_123"}
+        
+        # Mock pages accounts list third
+        mock_pages_resp = MagicMock()
+        mock_pages_resp.json.return_value = {
+            "data": [
+                {
+                    "id": "fb_page_123",
+                    "name": "My Facebook Page",
+                    "access_token": "page_token_123",
+                    "instagram_business_account": {
+                        "id": "ig_account_123",
+                        "username": "ig_business_user",
+                        "name": "My IG Business"
+                    }
+                }
+            ]
+        }
+        
+        mock_get.side_effect = [mock_token_resp, mock_extend_resp, mock_pages_resp]
+        
+        # Setup session state for validation
+        with self.client.session_transaction() as sess:
+            sess['oauth_state'] = 'test_state_123'
+            
+        resp = self.client.get('/settings/instagram/callback?code=test_code&state=test_state_123')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"ig_business_user", resp.data)
+        self.assertIn(b"My Facebook Page", resp.data)
 
 if __name__ == "__main__":
     unittest.main()

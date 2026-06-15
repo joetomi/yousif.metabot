@@ -5,17 +5,45 @@
 {% block content %}
 <div class="container py-4">
     <div class="row mb-4">
-        <div class="col-12 text-center text-md-start">
+        <div class="col-12 text-center">
             <h2 class="text-white fw-bold mb-2">إدارة الحسابات والقنوات الموصلة</h2>
             <p class="text-secondary">قم بربط حساباتك على قنوات التواصل لتفعيل المجيب الآلي الذكي وخدمات الردود التلقائية.</p>
         </div>
     </div>
 
-    <div class="row">
+    <div class="row justify-content-center">
         <!-- Add Account cards column -->
-        <div class="col-lg-8 col-12 mb-4">
+        <div class="col-lg-9 col-md-10 col-12 mb-4">
             <div class="d-flex flex-column gap-3">
                 
+                <!-- Facebook Messenger Card -->
+                <div class="glass-card p-4 transition-all">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center justify-content-center rounded-circle" style="width: 60px; height: 60px; background: rgba(0, 132, 255, 0.1); border: 1px solid rgba(0, 132, 255, 0.25);">
+                                <i class="fa-brands fa-facebook-messenger text-primary" style="font-size: 2rem; color: #0084FF !important;"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white fw-bold mb-1">Facebook Messenger</h4>
+                                <p class="text-secondary mb-0" style="font-size: 0.9em;">اربط صفحة فيسبوك ومجيب ماسنجر التلقائي بنقرة واحدة.</p>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            {% if fb_connected %}
+                                <span class="badge badge-emerald py-2 px-3 fw-bold mb-2 d-inline-block">متصل: {{ page_name }}</span>
+                                <br>
+                                <form action="{{ url_for('settings.disconnect_facebook') }}" method="POST">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">قطع الاتصال</button>
+                                </form>
+                            {% else %}
+                                <span class="badge badge-red py-2 px-3 fw-bold mb-2 d-inline-block">غير متصل</span>
+                                <br>
+                                <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-emerald btn-sm fb-login-popup" style="background-color: #0084FF; color: white;">ربط الحساب</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Instagram Card -->
                 <div class="glass-card p-4 transition-all">
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
@@ -30,39 +58,17 @@
                         </div>
                         <div class="text-end">
                             {% if ig_connected %}
-                                <span class="badge badge-emerald py-2 px-3 fw-bold mb-2 d-inline-block">متصل بنجاح</span>
+                                <span class="badge badge-emerald py-2 px-3 fw-bold mb-2 d-inline-block">متصل: @{{ instagram_username or 'Instagram' }}</span>
                                 <br>
-                                <button class="btn btn-glass btn-sm text-danger border-danger" data-bs-toggle="collapse" data-bs-target="#instagramForm">إعدادات الاتصال</button>
+                                <form action="{{ url_for('settings.disconnect_instagram') }}" method="POST">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">قطع الاتصال</button>
+                                </form>
                             {% else %}
                                 <span class="badge badge-red py-2 px-3 fw-bold mb-2 d-inline-block">غير متصل</span>
                                 <br>
-                                <button class="btn btn-emerald btn-sm" data-bs-toggle="collapse" data-bs-target="#instagramForm">ربط الحساب</button>
+                                <a href="{{ url_for('settings.instagram_login') }}" class="btn btn-emerald btn-sm fb-login-popup" style="background-color: #E1306C; color: white;">ربط الحساب</a>
                             {% endif %}
                         </div>
-                    </div>
-                    
-                    <!-- Instagram Connection Form (Collapsible) -->
-                    <div class="collapse mt-4 pt-3 border-top border-secondary" id="instagramForm">
-                        <form action="{{ url_for('settings.connect_instagram') }}" method="POST">
-                            <div class="row">
-                                <div class="col-md-6 col-12 mb-3">
-                                    <label class="form-label text-secondary small">معرف صفحة انستجرام للنشاط (Instagram Page ID)</label>
-                                    <input type="text" name="instagram_page_id" class="form-control glass-input" value="{{ instagram_page_id or '' }}" placeholder="أدخل معرف الصفحة...">
-                                </div>
-                                <div class="col-md-6 col-12 mb-3">
-                                    <label class="form-label text-secondary small">رمز وصول الصفحة (Instagram Access Token)</label>
-                                    <input type="password" name="instagram_access_token" class="form-control glass-input" placeholder="••••••••••••••••••••">
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between flex-wrap gap-2 mt-2">
-                                <button type="submit" class="btn btn-emerald btn-sm">حفظ والاتصال</button>
-                                {% if ig_connected %}
-                                </form>
-                                <form action="{{ url_for('settings.disconnect_instagram') }}" method="POST" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">قطع الاتصال</button>
-                                </form>
-                                {% endif %}
-                            </div>
                     </div>
                 </div>
 
@@ -100,7 +106,7 @@
                                     <input type="text" name="whatsapp_phone_number_id" class="form-control glass-input" value="{{ whatsapp_phone_number_id or '' }}" placeholder="مثال: 1058729384032">
                                 </div>
                                 <div class="col-md-6 col-12 mb-3">
-                                    <label class="form-label text-secondary small">رمز الوصول الدائم (WhatsApp Access Token)</label>
+                                    <label class="form-label text-secondary small">رمز وصول واتساب (WhatsApp Access Token)</label>
                                     <input type="password" name="whatsapp_access_token" class="form-control glass-input" placeholder="••••••••••••••••••••">
                                 </div>
                             </div>
@@ -116,82 +122,8 @@
                     </div>
                 </div>
 
-                <!-- Facebook Messenger Card -->
-                <div class="glass-card p-4 transition-all">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="d-flex align-items-center justify-content-center rounded-circle" style="width: 60px; height: 60px; background: rgba(0, 132, 255, 0.1); border: 1px solid rgba(0, 132, 255, 0.25);">
-                                <i class="fa-brands fa-facebook-messenger text-primary" style="font-size: 2rem; color: #0084FF !important;"></i>
-                            </div>
-                            <div>
-                                <h4 class="text-white fw-bold mb-1">Facebook Messenger</h4>
-                                <p class="text-secondary mb-0" style="font-size: 0.9em;">اربط صفحة فيسبوك ومجيب ماسنجر التلقائي بنقرة واحدة.</p>
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            {% if fb_connected %}
-                                <span class="badge badge-emerald py-2 px-3 fw-bold mb-2 d-inline-block">متصل: {{ page_name }}</span>
-                                <br>
-                                <form action="{{ url_for('settings.disconnect_facebook') }}" method="POST">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">قطع الاتصال</button>
-                                </form>
-                            {% else %}
-                                <span class="badge badge-red py-2 px-3 fw-bold mb-2 d-inline-block">غير متصل</span>
-                                <br>
-                                <a href="{{ url_for('settings.facebook_login') }}" class="btn btn-emerald btn-sm fb-login-popup" style="background-color: #0084FF; color: white;">ربط الحساب</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Webhook Info column -->
-        <div class="col-lg-4 col-12">
-            <div class="glass-card p-4">
-                <h4 class="text-white fw-bold mb-3 border-bottom border-secondary pb-2">إعداد الويب هوك (Webhook)</h4>
-                <p class="text-secondary small mb-3">لربط خدمات Meta بنظام يوسف بوت وإرسال الرسائل فورياً، قم بإدخال البيانات التالية في قسم Webhooks في لوحة مطوري فيسبوك:</p>
-                
-                <div class="mb-3">
-                    <label class="form-label text-info small mb-1">عنوان Callback URL</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control glass-input text-white small" id="webhook-url" value="{{ tunnel_url }}/webhook" readonly>
-                        <button class="btn btn-glass" onclick="copyValue('webhook-url')" title="نسخ"><i class="fa-regular fa-copy"></i></button>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label text-info small mb-1">رمز التحقق Verify Token</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control glass-input text-white small" id="verify-token" value="{{ verify_token }}" readonly>
-                        <button class="btn btn-glass" onclick="copyValue('verify-token')" title="نسخ"><i class="fa-regular fa-copy"></i></button>
-                    </div>
-                </div>
-
-                <div class="alert alert-info border-0 text-white small p-3 mb-0" style="background: rgba(59, 130, 246, 0.2);">
-                    <i class="fa-solid fa-circle-info me-2 text-info"></i>
-                    تأكد من تفعيل الاشتراكات التالية لكل خدمة:
-                    <ul class="mb-0 mt-2 ps-3 small">
-                        <li><strong>انستجرام:</strong> messages, comments</li>
-                        <li><strong>فيسبوك:</strong> messages, feed</li>
-                        <li><strong>واتساب:</strong> messages</li>
-                    </ul>
-                </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-function copyValue(id) {
-    var copyText = document.getElementById(id);
-    copyText.select();
-    copyText.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(copyText.value);
-    
-    // Alert user
-    alert("تم نسخ القيمة بنجاح!");
-}
-</script>
 {% endblock %}

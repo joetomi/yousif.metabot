@@ -80,6 +80,7 @@ def create_app():
             datetime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
             page_name=Setting.get("page_name", "", user_id=admin_id),
             page_id=Setting.get("page_id", "", user_id=admin_id),
+            instagram_username=Setting.get("instagram_username", "", user_id=admin_id),
             is_developer=is_developer,
             fb_connected=fb_connected,
             ig_connected=ig_connected,
