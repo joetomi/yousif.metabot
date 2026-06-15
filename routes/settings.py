@@ -221,7 +221,11 @@ def facebook_select_page():
 def instagram_login():
     session['oauth_popup'] = True
     
-    app_id = "4375759946087510"
+    app_id = Setting.get("app_id")
+    if not app_id:
+        flash("يرجى إعداد معرف تطبيق فيسبوك (App ID) أولاً في الإعدادات.", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
     
     redirect_uri = f"{request.url_root.rstrip('/')}/settings/instagram/callback"
     if not request.host.startswith('localhost') and not request.host.startswith('127.0.0.1'):
@@ -260,8 +264,13 @@ def instagram_callback():
         
     session.pop('oauth_state', None)
     
-    app_id = "4375759946087510"
-    app_secret = "70453b89701902d9a57ae02ec0568b9a"
+    app_id = Setting.get("app_id")
+    app_secret = Setting.get("app_secret")
+    
+    if not app_id or not app_secret:
+        flash("إعدادات معرف التطبيق (App ID) أو السر (App Secret) غير مكتملة.", "danger")
+        session.pop('oauth_popup', None)
+        return render_template('close_popup.html')
     
     redirect_uri = f"{request.url_root.rstrip('/')}/settings/instagram/callback"
     if not request.host.startswith('localhost') and not request.host.startswith('127.0.0.1'):

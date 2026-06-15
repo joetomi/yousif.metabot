@@ -1603,7 +1603,10 @@ class FacebookBotTestCase(unittest.TestCase):
     def test_instagram_oauth_login_callback(self, mock_get):
         """Verify Instagram login URL redirection and OAuth callback behavior."""
         self.login_admin()
-        
+        with self.app.app_context():
+            Setting.set("app_id", "test_app_id")
+            Setting.set("app_secret", "test_app_secret")
+            
         # A. Login redirect
         resp = self.client.get('/settings/instagram/login')
         self.assertEqual(resp.status_code, 302)
