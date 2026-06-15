@@ -36,7 +36,7 @@ def generate_ai_replies(comment_text, customer_name, post_text=None, user_id=Non
             "temperature": 0.7
         }
         
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         
         # 3. Formulate Prompt
         prompt = f"""
