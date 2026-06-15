@@ -1,7 +1,7 @@
 import os
 import json
 import google.generativeai as genai
-from models import db, Setting, MessengerFAQ, ProcessedMessage
+from models import db, Setting, MessengerFAQ, ProcessedMessage, MessengerChatHistory
 from services.facebook_api import FacebookApiService
 from services.comment_processor import log_activity
 
@@ -42,12 +42,70 @@ def process_messenger_job(app, msg_details):
             print(f"Error saving processed message ID: {e}")
             return
 
+        # 3. Check for spam
+        is_spam = False
+        from datetime import datetime, timedelta
+        limit_time = datetime.utcnow() - timedelta(seconds=30)
+        
+        customer_msgs_count = MessengerChatHistory.query.filter(
+            MessengerChatHistory.sender_id == sender_id,
+            MessengerChatHistory.admin_id == user_id,
+            MessengerChatHistory.is_from_customer == True,
+            MessengerChatHistory.created_at >= limit_time
+        ).count()
+        
+        if customer_msgs_count >= 5:
+            is_spam = True
+            print(f"Spam detected from customer {sender_id}. Relying on fallback message.")
+
+        # Save the customer message in history
+        try:
+            cust_msg = MessengerChatHistory(
+                sender_id=sender_id,
+                message_content=message_text,
+                is_from_customer=True,
+                admin_id=user_id
+            )
+            db.session.add(cust_msg)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving customer message to history: {e}")
+
         # Initialize Facebook API Service for this user
         token = Setting.get("page_access_token", user_id=user_id)
         page_id = Setting.get("page_id", user_id=user_id)
         api_service = FacebookApiService(page_access_token=token, page_id=page_id)
+        
+        fallback_text = Setting.get("messenger_bot_fallback", "شكراً لتواصلك معنا. تم استلام رسالتك وسيقوم أحد ممثلي خدمة العملاء بالرد عليك قريباً.", user_id=user_id)
 
-        # 3. Check for Keyword/FAQ matches
+        if is_spam:
+            success, msg = api_service.send_messenger_message(sender_id, fallback_text)
+            
+            # Save bot spam-fallback response to history
+            try:
+                bot_msg = MessengerChatHistory(
+                    sender_id=sender_id,
+                    message_content=fallback_text,
+                    is_from_customer=False,
+                    admin_id=user_id
+                )
+                db.session.add(bot_msg)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error saving bot spam-fallback message to history: {e}")
+                
+            log_activity(
+                event_type="MESSAGE",
+                status="SUCCESS" if success else "FAILED",
+                user_id=sender_id,
+                message=f"Spam detected (customer sent {customer_msgs_count} msgs in 30s). Dispatched fallback response: {msg}",
+                admin_id=user_id
+            )
+            return
+
+        # 4. Check for Keyword/FAQ matches
         faqs = MessengerFAQ.query.filter_by(is_active=True, admin_id=user_id).all()
         matched_response = None
         matched_keyword = None
@@ -67,6 +125,20 @@ def process_messenger_job(app, msg_details):
             print(f"Matched FAQ keyword '{matched_keyword}'. Sending custom response.")
             success, msg = api_service.send_messenger_message(sender_id, matched_response)
             
+            # Save FAQ response to history
+            try:
+                bot_msg = MessengerChatHistory(
+                    sender_id=sender_id,
+                    message_content=matched_response,
+                    is_from_customer=False,
+                    admin_id=user_id
+                )
+                db.session.add(bot_msg)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error saving FAQ response to history: {e}")
+                
             log_activity(
                 event_type="MESSAGE",
                 status="SUCCESS" if success else "FAILED",
@@ -78,13 +150,42 @@ def process_messenger_job(app, msg_details):
             )
             return
 
-        # 4. Fallback to Gemini AI with strict constraints and tone instructions
+        # 5. Fetch conversation history for context
+        history_records = MessengerChatHistory.query.filter_by(
+            sender_id=sender_id, admin_id=user_id
+        ).order_by(MessengerChatHistory.created_at.desc()).offset(1).limit(10).all()
+        
+        # Chronological order
+        history_records.reverse()
+        
+        history_text = ""
+        if history_records:
+            for record in history_records:
+                role = "Customer" if record.is_from_customer else "Bot"
+                history_text += f"\n[{role}]: {record.message_content}"
+
+        # 6. Fallback to Gemini AI with strict constraints and tone instructions
         gemini_api_key = Setting.get("gemini_api_key", "", user_id=user_id).strip()
         fallback_text = Setting.get("messenger_bot_fallback", "شكراً لتواصلك معنا. تم استلام رسالتك وسيقوم أحد ممثلي خدمة العملاء بالرد عليك قريباً.", user_id=user_id)
         
         if not gemini_api_key:
             # If Gemini key is missing, send the custom fallback response
             success, msg = api_service.send_messenger_message(sender_id, fallback_text)
+            
+            # Save bot fallback response to history
+            try:
+                bot_msg = MessengerChatHistory(
+                    sender_id=sender_id,
+                    message_content=fallback_text,
+                    is_from_customer=False,
+                    admin_id=user_id
+                )
+                db.session.add(bot_msg)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error saving bot fallback response to history: {e}")
+                
             log_activity(
                 event_type="MESSAGE",
                 status="SUCCESS" if success else "FAILED",
@@ -129,6 +230,7 @@ def process_messenger_job(app, msg_details):
 3. إذا سألك العميل عن أي شيء غير موجود في النص المساعد (مثل مواضيع خارج نطاق العمل، أو أسعار غير مذكورة، أو أسئلة عامة)، أجب بلطف واعتذر بلباقة مخبراً إياه بأنك بوت الرد التلقائي، واطلب منه التفضل بترك استفساره وسيقوم موظف الدعم البشري بالتواصل معه والإجابة عليه في أقرب وقت.
 4. أجب دائماً بنفس لغة العميل (العربية أو الإنجليزية).
 5. حافظ على الردود قصيرة ومباشرة ومريحة للقراءة (بحد أقصى 2-3 جمل).
+6. راجع محادثتك السابقة مع هذا العميل المذكورة أدناه لفهم السياق ومتابعة الحجز أو الرد بشكل مناسب.
 """
 
         try:
@@ -136,7 +238,10 @@ def process_messenger_job(app, msg_details):
             model = genai.GenerativeModel("gemini-2.5-flash")
             
             prompt = f"""
-Customer Query:
+Conversation History with this Customer (ID: {sender_id}):
+{history_text or "No previous messages."}
+
+Current Customer Query:
 {message_text}
 
 Reply instructions:
@@ -156,6 +261,20 @@ Reply instructions:
 
         # Send response via Messenger API
         success, msg = api_service.send_messenger_message(sender_id, reply_text)
+        
+        # Save bot response to history
+        try:
+            bot_msg = MessengerChatHistory(
+                sender_id=sender_id,
+                message_content=reply_text,
+                is_from_customer=False,
+                admin_id=user_id
+            )
+            db.session.add(bot_msg)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving bot Gemini response to history: {e}")
         
         log_activity(
             event_type="MESSAGE",

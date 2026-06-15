@@ -957,5 +957,179 @@ class FacebookBotTestCase(unittest.TestCase):
             self.assertIsNotNone(msg_record)
             self.assertEqual(msg_record.message_content, "الرسالة الاحتياطية المخصصة للعميل")
 
+    @patch('services.facebook_api.requests.post')
+    @patch('google.generativeai.GenerativeModel')
+    def test_messenger_chat_history_logging_and_memory(self, mock_generative_model, mock_post):
+        """Verify Messenger chat history logging, retrieval, and prompt injection."""
+        from services.messenger_processor import process_messenger_job
+        from models import MessengerChatHistory
+        
+        # Mock Graph API responses
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true, "message_id":"mid_123"}'
+        mock_post.return_value = mock_resp
+        
+        # Mock Gemini response
+        mock_model_instance = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "This is a Gemini AI reply."
+        mock_model_instance.generate_content.return_value = mock_response
+        mock_generative_model.return_value = mock_model_instance
+        
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("messenger_bot_enabled", "true", user_id=client_id)
+            Setting.set("gemini_enabled", "true", user_id=client_id)
+            Setting.set("gemini_api_key", "test_key_ok", user_id=client_id)
+            Setting.set("page_access_token", "fake_token", user_id=client_id)
+            Setting.set("page_id", "page_id_123", user_id=client_id)
+            
+            # Pre-seed one message in history to test memory loading
+            prev_cust = MessengerChatHistory(
+                sender_id="sender_history_999",
+                message_content="Old question",
+                is_from_customer=True,
+                admin_id=client_id
+            )
+            db.session.add(prev_cust)
+            db.session.commit()
+            
+        # Run messenger job
+        msg_details = {
+            "sender_id": "sender_history_999",
+            "message_text": "New question",
+            "message_id": "mid_new_001",
+            "timestamp": 123456789,
+            "app_user_id": client_id
+        }
+        process_messenger_job(self.app, msg_details)
+        
+        # Verify db history records
+        with self.app.app_context():
+            history = MessengerChatHistory.query.filter_by(sender_id="sender_history_999").order_by(MessengerChatHistory.created_at.asc()).all()
+            self.assertEqual(len(history), 3)
+            self.assertEqual(history[0].message_content, "Old question")
+            self.assertEqual(history[1].message_content, "New question")
+            self.assertEqual(history[2].message_content, "This is a Gemini AI reply.")
+            self.assertTrue(history[0].is_from_customer)
+            self.assertTrue(history[1].is_from_customer)
+            self.assertFalse(history[2].is_from_customer)
+            
+        # Verify the prompt contained the history context
+        called_args = mock_model_instance.generate_content.call_args[0][0]
+        self.assertIn("Conversation History with this Customer", called_args)
+        self.assertIn("[Customer]: Old question", called_args)
+        self.assertIn("New question", called_args)
+
+    @patch('services.facebook_api.requests.post')
+    @patch('google.generativeai.GenerativeModel')
+    def test_messenger_smart_spam_protection(self, mock_generative_model, mock_post):
+        """Verify that sending too many messages switches Gemini off and triggers fallback directly."""
+        from services.messenger_processor import process_messenger_job
+        from models import MessengerChatHistory
+        
+        # Mock Graph API response
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true, "message_id":"mid_123"}'
+        mock_post.return_value = mock_resp
+        
+        # Mock Gemini response (should NOT be called if spam)
+        mock_model_instance = MagicMock()
+        mock_generative_model.return_value = mock_model_instance
+        
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("messenger_bot_enabled", "true", user_id=client_id)
+            Setting.set("gemini_enabled", "true", user_id=client_id)
+            Setting.set("gemini_api_key", "test_key_ok", user_id=client_id)
+            Setting.set("page_access_token", "fake_token", user_id=client_id)
+            Setting.set("page_id", "page_id_123", user_id=client_id)
+            Setting.set("messenger_bot_fallback", "الرسالة الاحتياطية للسبام", user_id=client_id)
+            
+            # Pre-seed 5 customer messages in history within the last 5 seconds to trigger spam
+            for i in range(5):
+                spam_msg = MessengerChatHistory(
+                    sender_id="sender_spam_999",
+                    message_content=f"Spam text {i}",
+                    is_from_customer=True,
+                    admin_id=client_id
+                )
+                db.session.add(spam_msg)
+            db.session.commit()
+            
+        # Run messenger job (6th message)
+        msg_details = {
+            "sender_id": "sender_spam_999",
+            "message_text": "Spam text 6",
+            "message_id": "mid_spam_006",
+            "timestamp": 123456789,
+            "app_user_id": client_id
+        }
+        process_messenger_job(self.app, msg_details)
+        
+        # Verify mock model generate_content was NOT called
+        mock_model_instance.generate_content.assert_not_called()
+        
+        # Verify fallback response was logged and sent
+        with self.app.app_context():
+            history = MessengerChatHistory.query.filter_by(sender_id="sender_spam_999").order_by(MessengerChatHistory.created_at.asc()).all()
+            self.assertEqual(len(history), 7)
+            self.assertEqual(history[5].message_content, "Spam text 6")
+            self.assertEqual(history[6].message_content, "الرسالة الاحتياطية للسبام")
+            self.assertFalse(history[6].is_from_customer)
+
+    @patch('services.facebook_api.requests.post')
+    def test_comment_private_reply_logs_to_chat_history(self, mock_post):
+        """Verify that successfully sending a private reply to a comment logs to chat history."""
+        from services.comment_processor import process_comment_job
+        from models import MessengerChatHistory
+        
+        # Mock Graph API responses
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"success":true, "id":"reply_123"}'
+        mock_post.return_value = mock_resp
+        
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("page_access_token", "fake_token", user_id=client_id)
+            Setting.set("page_id", "page_id_123", user_id=client_id)
+            
+            post = Post(
+                id="post_comment_history_123",
+                message="Check this out!",
+                is_monitored=True,
+                user_id=client_id,
+                default_reply="شكراً لتعليقك",
+                private_message="مرحبا بك في الخاص"
+            )
+            db.session.add(post)
+            db.session.commit()
+            
+        comment_data = {
+            "comment_id": "comment_history_test",
+            "post_id": "post_comment_history_123",
+            "user_id": "customer_history_999",
+            "username": "History User",
+            "message": "Hello!",
+            "created_time": "2026-06-13T12:00:00+0000",
+            "app_user_id": client_id
+        }
+        
+        # Run comment processor
+        process_comment_job(self.app, comment_data)
+        
+        # Verify the private reply is recorded in MessengerChatHistory
+        with self.app.app_context():
+            history = MessengerChatHistory.query.filter_by(sender_id="customer_history_999").all()
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0].message_content, "مرحبا بك في الخاص")
+            self.assertFalse(history[0].is_from_customer)
+
 if __name__ == "__main__":
     unittest.main()

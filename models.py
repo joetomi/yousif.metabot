@@ -190,3 +190,19 @@ class WebhookLog(db.Model):
     received_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(50), default='SUCCESS')
     error_message = db.Column(db.Text, nullable=True)
+
+
+class MessengerChatHistory(db.Model):
+    __tablename__ = 'messenger_chat_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.String(100), nullable=False)
+    message_content = db.Column(db.Text, nullable=False)
+    is_from_customer = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id', ondelete='CASCADE'), nullable=True)
+    
+    __table_args__ = (
+        db.Index('idx_chat_history_sender_admin_created', 'sender_id', 'admin_id', 'created_at'),
+    )
+

@@ -239,6 +239,22 @@ def process_comment_job(app, comment_data):
             msg_success, msg_err = api.send_private_reply(comment_id, parsed_private)
             if msg_success:
                 message_record.status = 'SUCCESS'
+                
+                # Save to MessengerChatHistory
+                try:
+                    from models import MessengerChatHistory
+                    bot_msg = MessengerChatHistory(
+                        sender_id=user_id,
+                        message_content=parsed_private,
+                        is_from_customer=False,
+                        admin_id=admin_id
+                    )
+                    db.session.add(bot_msg)
+                    db.session.commit()
+                except Exception as history_ex:
+                    db.session.rollback()
+                    print(f"Error saving comment private reply to chat history: {history_ex}")
+                    
                 log_activity(
                     event_type="MESSAGE",
                     status="SUCCESS",
