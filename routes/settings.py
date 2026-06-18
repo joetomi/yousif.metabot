@@ -420,7 +420,7 @@ def add_account_page():
         wa_connected = True
         
     # Get tunnel_url and verify_token to display
-    tunnel_url = Setting.get("tunnel_url", "https://yousif-metabot.onrender.com")
+    tunnel_url = Setting.get("tunnel_url", "https://yousif-metabot-j49b.onrender.com")
     verify_token = Setting.get("verify_token", "my_verify_token_123")
     
     return render_template(
