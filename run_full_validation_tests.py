@@ -607,7 +607,12 @@ class FacebookBotTestCase(unittest.TestCase):
             subscription_expires_at='2026-12-31'
         ), follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'User account created successfully!', resp.data)
+        self.assertIn('تم إضافة المستخدم لقاعدة البيانات بنجاح!'.encode('utf-8'), resp.data)
+        
+        # Test Database Connection endpoint
+        resp_db = self.client.post('/developer/test-db')
+        self.assertEqual(resp_db.status_code, 200)
+        self.assertIn(b'success', resp_db.data)
         
         with self.app.app_context():
             new_u = Admin.query.filter_by(username='new_client').first()
@@ -1382,10 +1387,24 @@ class FacebookBotTestCase(unittest.TestCase):
         
         process_instagram_comment_job(self.app, comment_data)
         
-        # Verify Meta API call was made to replies endpoint
-        self.assertTrue(mock_post.called)
-        called_url = mock_post.call_args[0][0]
-        self.assertIn("ig_comment_abc/replies", called_url)
+        # Verify Meta API calls were made (both public reply and private reply)
+        self.assertEqual(mock_post.call_count, 2)
+        
+        first_call_url = mock_post.call_args_list[0][0][0]
+        second_call_url = mock_post.call_args_list[1][0][0]
+        
+        self.assertIn("ig_comment_abc/replies", first_call_url)
+        self.assertIn("me/messages", second_call_url)
+        
+        # Verify comment and message were logged in database
+        with self.app.app_context():
+            saved_comment = Comment.query.get("ig_comment_abc")
+            self.assertIsNotNone(saved_comment)
+            self.assertTrue(saved_comment.reply_sent)
+            
+            saved_msg = Message.query.filter_by(comment_id="ig_comment_abc").first()
+            self.assertIsNotNone(saved_msg)
+            self.assertEqual(saved_msg.status, "SUCCESS")
 
     # 14. Verify Instagram direct messaging processing job (history, Gemini and spam)
     @patch('services.instagram_processor.requests.post')
@@ -1649,6 +1668,83 @@ class FacebookBotTestCase(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"ig_business_user", resp.data)
         self.assertIn(b"My Facebook Page", resp.data)
+
+    # 18. Verify Facebook and Instagram posts segregation
+    def test_post_segregation(self):
+        """Verify that Facebook and Instagram posts are kept segregated in their respective views."""
+        self.login_admin()
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            
+            # Setup a FB post
+            fb_post = Post(
+                id="fb_post_999",
+                message="This is a Facebook post message",
+                is_monitored=True,
+                user_id=client_id
+            )
+            # Setup an IG post
+            ig_post = Post(
+                id="ig_post_999",
+                message="This is an Instagram media post caption",
+                is_monitored=True,
+                user_id=client_id
+            )
+            db.session.add(fb_post)
+            db.session.add(ig_post)
+            db.session.commit()
+            
+        # Get Facebook posts page
+        resp_fb = self.client.get('/posts')
+        self.assertEqual(resp_fb.status_code, 200)
+        self.assertIn(b"fb_post_999", resp_fb.data)
+        self.assertNotIn(b"ig_post_999", resp_fb.data)
+        
+        # Get Instagram posts page
+        resp_ig = self.client.get('/instagram/posts')
+        self.assertEqual(resp_ig.status_code, 200)
+        self.assertIn(b"ig_post_999", resp_ig.data)
+        self.assertNotIn(b"fb_post_999", resp_ig.data)
+
+    # 19. Verify Instagram posts refresh
+    @patch('routes.instagram.requests.get')
+    def test_instagram_posts_refresh(self, mock_get):
+        """Verify that refreshing Instagram posts queries the Graph API and saves to database."""
+        self.login_admin()
+        with self.app.app_context():
+            client_admin = Admin.query.filter_by(username='admin').first()
+            client_id = client_admin.id
+            Setting.set("instagram_page_access_token", "fake_token", user_id=client_id)
+            Setting.set("instagram_page_id", "ig_page_123", user_id=client_id)
+            
+        # Mock Graph API media list response
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = json.dumps({
+            "data": [
+                {
+                    "id": "ig_media_unique_xyz",
+                    "caption": "Fresh new Reels caption text",
+                    "timestamp": "2026-06-18T12:00:00+0000",
+                    "comments_count": 7
+                }
+            ]
+        })
+        mock_resp.json.return_value = json.loads(mock_resp.text)
+        mock_get.return_value = mock_resp
+        
+        resp = self.client.post('/instagram/posts/refresh')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"success", resp.data)
+        
+        # Verify saved in database
+        with self.app.app_context():
+            post = Post.query.get("ig_ig_media_unique_xyz")
+            self.assertIsNotNone(post)
+            self.assertEqual(post.message, "Fresh new Reels caption text")
+            self.assertEqual(post.comment_count, 7)
+            self.assertFalse(post.is_monitored)
 
 if __name__ == "__main__":
     unittest.main()

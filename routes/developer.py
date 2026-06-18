@@ -108,7 +108,13 @@ def add_user():
     Setting.set("messenger_bot_fallback", Config.DEFAULT_MESSENGER_BOT_FALLBACK, user_id=new_user.id)
     Setting.set("anti_spam_mode", "every_comment", user_id=new_user.id)
     
-    flash("User account created successfully!", "success")
+    # Verify the user reached the database
+    db_verified = Admin.query.filter_by(username=username).first() is not None
+    if db_verified:
+        flash("تم إضافة المستخدم لقاعدة البيانات بنجاح!", "success")
+    else:
+        flash("فشل في تأكيد إضافة المستخدم لقاعدة البيانات.", "danger")
+        
     return redirect(url_for('developer.list_users'))
 
 @developer_bp.route('/developer/users/toggle-status/<int:user_id>', methods=['POST'])
@@ -207,3 +213,24 @@ def change_own_password():
     
     flash("Developer password updated successfully!", "success")
     return redirect(url_for('developer.list_users'))
+
+@developer_bp.route('/developer/test-db', methods=['POST'])
+@developer_required
+def test_db_connection():
+    try:
+        # Check connection by executing a simple query
+        db.session.execute(db.text("SELECT 1"))
+        
+        # Determine the database URL/type being used
+        db_uri = db.engine.url.render_as_string(hide_password=True)
+        db_type = "PostgreSQL (Supabase)" if "supabase" in db_uri.lower() or "postgres" in db_uri.lower() else "SQLite"
+        
+        return jsonify({
+            "status": "success",
+            "message": f"تم الاتصال بقاعدة البيانات بنجاح! نوع قاعدة البيانات المستخدمة: {db_type}."
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"فشل الاتصال بقاعدة البيانات: {str(e)}"
+        }), 500

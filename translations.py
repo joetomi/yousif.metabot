@@ -64,8 +64,15 @@ translations = {
         'import_btn': 'Restore Configuration',
         
         # Posts
-        'posts_title': 'Posts Management',
+        'posts_title': 'Reply to Facebook Comments',
+        'facebook_section': 'Facebook',
+        'messenger_auto_reply': 'Auto Reply (Messenger)',
+        'facebook_comments_reply': 'Reply to Facebook Comments',
+        'instagram_section': 'Instagram',
+        'instagram_auto_reply': 'Auto Reply (Instagram)',
+        'instagram_comments_reply': 'Reply to Instagram Comments',
         'refresh_posts_btn': 'Refresh Posts from Facebook',
+        'refresh_instagram_posts_btn': 'Refresh Posts from Instagram',
         'post_id': 'Post ID',
         'post_msg': 'Message / message snippet',
         'post_date': 'Publish Date',
@@ -216,8 +223,15 @@ translations = {
         'import_btn': 'استعادة الإعدادات والمنشورات',
         
         # Posts
-        'posts_title': 'إدارة منشورات الصفحة',
+        'posts_title': 'الرد على تعليقات الفيسبوك',
+        'facebook_section': 'فيسبوك',
+        'messenger_auto_reply': 'الرد الآلي (ماسينجر)',
+        'facebook_comments_reply': 'الرد على تعليقات الفيسبوك',
+        'instagram_section': 'انستجرام',
+        'instagram_auto_reply': 'الرد الآلي (انستجرام)',
+        'instagram_comments_reply': 'الرد على تعليقات الانستجرام',
         'refresh_posts_btn': 'مزامنة المنشورات من فيسبوك',
+        'refresh_instagram_posts_btn': 'مزامنة المنشورات من انستجرام',
         'post_id': 'معرف المنشور',
         'post_msg': 'محتوى المنشور / مقتطف',
         'post_date': 'تاريخ النشر',

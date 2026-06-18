@@ -12,7 +12,7 @@ posts_bp = Blueprint('posts', __name__)
 def index():
     from flask import session
     admin_id = session.get('admin_id')
-    posts = Post.query.filter((Post.user_id == admin_id) | (Post.user_id == None)).order_by(Post.created_time.desc()).all()
+    posts = Post.query.filter(((Post.user_id == admin_id) | (Post.user_id == None)) & ~Post.id.like("ig_%")).order_by(Post.created_time.desc()).all()
     return render_template('posts.html', posts=posts)
 
 @posts_bp.route('/posts/refresh', methods=['POST'])
@@ -126,9 +126,12 @@ def update_templates(post_id):
     from flask import session
     admin_id = session.get('admin_id')
     post = Post.query.filter((Post.id == post_id) & ((Post.user_id == admin_id) | (Post.user_id == None))).first()
+    
+    redirect_target = url_for('instagram.instagram_posts') if post_id.startswith('ig_') else url_for('posts.index')
+    
     if not post:
         flash("Post not found.", "danger")
-        return redirect(url_for('posts.index'))
+        return redirect(redirect_target)
         
     try:
         default_reply = request.form.get("default_reply", "").strip()
@@ -136,7 +139,7 @@ def update_templates(post_id):
         
         if not default_reply or not private_message:
             flash("Templates cannot be empty.", "warning")
-            return redirect(url_for('posts.index'))
+            return redirect(redirect_target)
             
         post.default_reply = default_reply
         post.private_message = private_message
@@ -153,4 +156,4 @@ def update_templates(post_id):
         db.session.rollback()
         flash(f"Error updating templates: {str(e)}", "danger")
         
-    return redirect(url_for('posts.index'))
+    return redirect(redirect_target)

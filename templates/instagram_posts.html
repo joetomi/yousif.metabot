@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.instagram_comments_reply }} - {{ t.brand }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row mb-4 align-items-center">
+        <div class="col-sm-6">
+            <h1 class="h3 mb-0 text-white font-weight-bold">{{ t.instagram_comments_reply }}</h1>
+        </div>
+        <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+            <button type="button" class="btn btn-emerald" id="refresh-instagram-posts-btn">
+                <i class="fa-solid fa-arrows-rotate me-2"></i> {{ t.refresh_instagram_posts_btn }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Posts Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card glass-card">
+                <div class="table-responsive">
+                    <table class="table glass-table text-white mb-0">
+                        <thead>
+                            <tr>
+                                <th>معرف المنشور</th>
+                                <th>نص المنشور / الريل</th>
+                                <th>تاريخ النشر</th>
+                                <th>عدد التعليقات</th>
+                                <th>مراقب</th>
+                                <th>الخيارات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if posts %}
+                                {% for post in posts %}
+                                <tr id="post-row-{{ post.id }}">
+                                    <td class="font-monospace small" style="color: var(--accent-color);">{{ post.id }}</td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 320px;" title="{{ post.message }}">
+                                            {{ post.message or '[بدون نص]' }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {{ post.created_time.strftime('%Y-%m-%d %H:%M') if post.created_time else 'N/A' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-dark border border-secondary text-secondary">
+                                            {{ post.comment_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="form-check form-switch m-0">
+                                            <input class="form-check-input monitor-switch" type="checkbox" role="switch" 
+                                                   data-post-id="{{ post.id }}" 
+                                                   {% if post.is_monitored %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-glass btn-sm py-1 px-2.5" 
+                                                data-bs-toggle="modal" data-bs-target="#templatesModal-{{ post.id }}">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> إعداد القوالب
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-secondary py-4">لم يتم العثور على أي منشورات أو ريلز. اضغط على تحديث لجلب المنشورات والريلز من حساب انستجرام.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals Container -->
+{% if posts %}
+    {% for post in posts %}
+    <!-- Response Templates Configuration Modal -->
+    <div class="modal fade" id="templatesModal-{{ post.id }}" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(8px);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 text-white" style="background: rgba(30, 41, 59, 0.95); border: 1px solid var(--glass-border); border-radius: 14px; box-shadow: var(--card-shadow);">
+                
+                <!-- Modal Header -->
+                <div class="modal-header border-bottom border-secondary p-3">
+                    <h5 class="modal-title fw-bold" style="color: var(--accent-color);">
+                        <i class="fa-solid fa-message me-2"></i> إعداد قوالب الرد التلقائي (انستجرام)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <!-- Modal Form -->
+                <form action="{{ url_for('posts.update_templates', post_id=post.id) }}" method="POST">
+                    <div class="modal-body p-4">
+                        
+                        <!-- Snippet Context -->
+                        <div class="p-3 mb-4 rounded" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border);">
+                            <label class="text-secondary small fw-bold mb-1 d-block">نص المنشور / الريل</label>
+                            <span class="small">{{ post.message or '[بدون نص]' }}</span>
+                        </div>
+
+                        <!-- Public Reply Template -->
+                        <div class="mb-3">
+                            <label for="default_reply-{{ post.id }}" class="form-label text-secondary fw-semibold">قالب الرد العام على التعليق في انستجرام</label>
+                            <textarea class="form-control glass-input" id="default_reply-{{ post.id }}" name="default_reply" rows="3" required placeholder="شكراً لتعليقك! تم إرسال التفاصيل على الخاص.">{{ post.default_reply }}</textarea>
+                        </div>
+
+                        <!-- Private Messenger Template -->
+                        <div class="mb-3">
+                            <label for="private_message-{{ post.id }}" class="form-label text-secondary fw-semibold">قالب الرسالة الخاصة التلقائية على انستجرام</label>
+                            <textarea class="form-control glass-input" id="private_message-{{ post.id }}" name="private_message" rows="4" required placeholder="مرحباً {name}، شكراً لاهتمامك. إليك التفاصيل:">{{ post.private_message }}</textarea>
+                        </div>
+
+                        <!-- Variables Hints -->
+                        <div class="alert alert-dark border-0 p-2.5 rounded mb-0 mt-3" style="background: rgba(17, 202, 160, 0.08);">
+                            <span class="text-success small fw-semibold">
+                                <i class="fa-solid fa-circle-info me-1"></i> المتغيرات المتاحة: {name} (اسم المعلق)، {comment} (نص التعليق)، {post_id} (معرف المنشور)، {date} (تاريخ التعليق)
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-top border-secondary p-3">
+                        <button type="button" class="btn btn-glass" data-bs-dismiss="modal">إغلاق</button>
+                        <button type="submit" class="btn btn-emerald">حفظ القوالب</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const refreshBtn = document.getElementById("refresh-instagram-posts-btn");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", function() {
+            const origText = refreshBtn.innerHTML;
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> جاري الجلب...';
+            
+            fetch("{{ url_for('instagram.refresh_instagram_posts') }}", {
+                method: "POST"
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(res => {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = origText;
+                
+                if (res.status === 200) {
+                    if (window.showToast) {
+                        window.showToast("success", res.body.message);
+                    } else {
+                        alert(res.body.message);
+                    }
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    if (window.showToast) {
+                        window.showToast("danger", res.body.message);
+                    } else {
+                        alert(res.body.message);
+                    }
+                }
+            })
+            .catch(err => {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = origText;
+                if (window.showToast) {
+                    window.showToast("danger", "حدث خطأ أثناء الاتصال بالخادم.");
+                } else {
+                    alert("حدث خطأ أثناء الاتصال بالخادم.");
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

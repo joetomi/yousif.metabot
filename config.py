@@ -12,7 +12,12 @@ class Config:
     SECRET_KEY = secret_key
     
     # Database configuration
-    db_url = os.getenv("DATABASE_URL", "sqlite:///database.db")
+    default_db = "sqlite:///database.db"
+    # Render persistent disk support: if /data is mounted, default SQLite database there
+    if os.path.exists("/data"):
+        default_db = "sqlite:////data/database.db"
+        
+    db_url = os.getenv("DATABASE_URL", default_db)
     if db_url and db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     SQLALCHEMY_DATABASE_URI = db_url

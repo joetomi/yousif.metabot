@@ -74,6 +74,18 @@
                     </button>
                 </form>
             </div>
+
+            <!-- Database Test Connection Card -->
+            <div class="card glass-card p-4 mt-4">
+                <h5 class="text-white font-weight-bold mb-4 border-bottom border-secondary pb-2" style="border-color: rgba(255,255,255,0.08) !important;">
+                    <i class="fa-solid fa-database text-success me-2"></i> اتصال قاعدة البيانات
+                </h5>
+                <p class="text-secondary small">افحص حالة اتصال خادم المنصة بقاعدة البيانات النشطة (Supabase / SQLite).</p>
+                <button type="button" class="btn btn-glass w-100 py-2" id="test-db-btn">
+                    <i class="fa-solid fa-arrows-rotate me-2"></i> اختبار اتصال قاعدة البيانات
+                </button>
+                <div id="db-test-result" class="mt-3 small" style="text-align: right; direction: rtl;"></div>
+            </div>
         </div>
 
         <!-- Users List (Right Side) -->
@@ -325,6 +337,39 @@ document.addEventListener('DOMContentLoaded', function() {
     passwordInput.addEventListener('input', validateForm);
     passwordConfirmInput.addEventListener('input', validateForm);
     
+    // Test Database Connection
+    const testDbBtn = document.getElementById("test-db-btn");
+    const dbTestResult = document.getElementById("db-test-result");
+    
+    if (testDbBtn && dbTestResult) {
+        testDbBtn.addEventListener("click", function() {
+            testDbBtn.disabled = true;
+            const origText = testDbBtn.innerHTML;
+            testDbBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 14px; height: 14px;"></span> جاري الفحص...';
+            dbTestResult.innerHTML = '<span class="text-info">جاري فحص الاتصال بقاعدة البيانات...</span>';
+            
+            fetch("/developer/test-db", {
+                method: "POST"
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(res => {
+                testDbBtn.disabled = false;
+                testDbBtn.innerHTML = origText;
+                
+                if (res.ok) {
+                    dbTestResult.innerHTML = `<span class="text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ${res.data.message}</span>`;
+                } else {
+                    dbTestResult.innerHTML = `<span class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> ${res.data.message}</span>`;
+                }
+            })
+            .catch(err => {
+                testDbBtn.disabled = false;
+                testDbBtn.innerHTML = origText;
+                dbTestResult.innerHTML = '<span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> خطأ في الشبكة أثناء الاتصال بالخادم.</span>';
+            });
+        });
+    }
+
     // Initial state
     validateForm();
 });

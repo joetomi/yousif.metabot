@@ -386,6 +386,7 @@ def instagram_select_account():
         
     Setting.set("instagram_page_id", selected['instagram_page_id'], user_id=current_user_id)
     Setting.set("instagram_page_access_token", selected['access_token'], user_id=current_user_id)
+    Setting.set("instagram_fb_page_id", selected['page_id'], user_id=current_user_id)
     Setting.set("instagram_bot_enabled", "true", user_id=current_user_id)
     Setting.set("instagram_username", selected['instagram_username'], user_id=current_user_id)
     
@@ -444,6 +445,7 @@ def disconnect_instagram():
     admin_id = session.get('admin_id')
     Setting.set("instagram_page_id", "", user_id=admin_id)
     Setting.set("instagram_page_access_token", "", user_id=admin_id)
+    Setting.set("instagram_fb_page_id", "", user_id=admin_id)
     Setting.set("instagram_username", "", user_id=admin_id)
     Setting.set("instagram_bot_enabled", "false", user_id=admin_id)
     flash("Instagram account disconnected.", "info")

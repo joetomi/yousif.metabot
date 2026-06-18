@@ -287,4 +287,5 @@ document.addEventListener("DOMContentLoaded", function () {
             setTimeout(() => toast.remove(), 500);
         }, 4000);
     }
+    window.showToast = showToast;
 });

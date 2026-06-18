@@ -98,25 +98,30 @@
 
             <!-- Facebook Section -->
             {% if fb_connected %}
-            <li class="menu-divider text-uppercase text-secondary px-3 pt-3 pb-1" style="font-size: 0.75em; font-weight: 700; list-style-type: none; border: none;">فيسبوك</li>
+            <li class="menu-divider text-uppercase text-secondary px-3 pt-3 pb-1" style="font-size: 0.75em; font-weight: 700; list-style-type: none; border: none;">{{ t.facebook_section }}</li>
             <li class="{% if request.path == '/messenger' %}active{% endif %}">
                 <a href="{{ url_for('messenger.index') }}">
-                    <i class="fa-brands fa-facebook-messenger"></i> الرد الآلي (ماسنجر)
+                    <i class="fa-brands fa-facebook-messenger"></i> {{ t.messenger_auto_reply }}
                 </a>
             </li>
             <li class="{% if request.path == '/posts' %}active{% endif %}">
                 <a href="{{ url_for('posts.index') }}">
-                    <i class="fa-solid fa-comment-dots"></i> الرد على التعليقات
+                    <i class="fa-solid fa-comment-dots"></i> {{ t.facebook_comments_reply }}
                 </a>
             </li>
             {% endif %}
 
             <!-- Instagram Section -->
             {% if ig_connected %}
-            <li class="menu-divider text-uppercase text-secondary px-3 pt-3 pb-1" style="font-size: 0.75em; font-weight: 700; list-style-type: none; border: none;">انستجرام</li>
+            <li class="menu-divider text-uppercase text-secondary px-3 pt-3 pb-1" style="font-size: 0.75em; font-weight: 700; list-style-type: none; border: none;">{{ t.instagram_section }}</li>
             <li class="{% if request.path == '/instagram' %}active{% endif %}">
                 <a href="{{ url_for('instagram.index') }}">
-                    <i class="fa-brands fa-instagram"></i> الرد الآلي (انستجرام)
+                    <i class="fa-brands fa-instagram"></i> {{ t.instagram_auto_reply }}
+                </a>
+            </li>
+            <li class="{% if request.path == '/instagram/posts' %}active{% endif %}">
+                <a href="{{ url_for('instagram.instagram_posts') }}">
+                    <i class="fa-solid fa-comment-dots"></i> {{ t.instagram_comments_reply }}
                 </a>
             </li>
             {% endif %}

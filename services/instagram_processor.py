@@ -3,8 +3,9 @@ import json
 import requests
 from datetime import datetime, timedelta
 import google.generativeai as genai
-from models import db, Setting, MessengerFAQ, ProcessedMessage, InstagramChatHistory, Post
-from services.comment_processor import log_activity
+from models import db, Setting, MessengerFAQ, ProcessedMessage, InstagramChatHistory, Post, Comment, Message
+from services.comment_processor import log_activity, check_anti_spam, record_processed_user, trigger_dashboard_update
+from services.facebook_api import FacebookApiService
 
 def send_instagram_message(page_access_token, recipient_id, text):
     """Sends a direct message to a user on Instagram."""
@@ -38,10 +39,21 @@ def send_instagram_comment_reply(page_access_token, comment_id, text):
         return False, str(e)
 
 def send_instagram_private_reply(page_access_token, comment_id, text):
-    """Instagram private reply to a comment (not supported directly on standard API, falls back to direct message if recipient PSID available, or posts a public reply)."""
-    # For Instagram, standard private reply uses standard message endpoint with the recipient's id if available.
-    # We will log it to history and send it.
-    pass
+    """Sends a private message (private reply) to an Instagram commenter."""
+    url = "https://graph.facebook.com/v19.0/me/messages"
+    params = {"access_token": page_access_token}
+    payload = {
+        "recipient": {"comment_id": comment_id},
+        "message": {"text": text}
+    }
+    try:
+        res = requests.post(url, params=params, json=payload)
+        res_data = res.json()
+        if 'error' in res_data:
+            return False, res_data['error'].get('message', 'Unknown error')
+        return True, "SUCCESS"
+    except Exception as e:
+        return False, str(e)
 
 def process_instagram_message_job(app, msg_details):
     """Processes incoming direct messages on Instagram."""
@@ -256,32 +268,172 @@ Reply instructions:
         )
 
 def process_instagram_comment_job(app, comment_data):
-    """Processes incoming comments on Instagram posts."""
+    """Processes incoming comments on Instagram posts/reels."""
     with app.app_context():
         user_id = comment_data.get("app_user_id")
         comment_id = comment_data.get("comment_id")
-        post_id = comment_data.get("post_id")
+        post_id = comment_data.get("post_id")  # This is prefixed with "ig_"
         sender_id = comment_data.get("user_id")
         username = comment_data.get("username", "Instagram User")
         message_text = comment_data.get("message", "")
         
-        # Verify post is monitored
+        # 1. Verify post is monitored
         post = Post.query.filter_by(id=post_id, user_id=user_id).first()
         if not post or not post.is_monitored:
+            print(f"Skipping Instagram comment {comment_id} on post {post_id} because post is not monitored.")
+            return
+
+        # 2. Check duplicate comment
+        existing_comment = Comment.query.get(comment_id)
+        if existing_comment and existing_comment.processed:
+            print(f"Instagram comment {comment_id} already processed. Skipping.")
+            return
+            
+        if not existing_comment:
+            existing_comment = Comment(
+                id=comment_id,
+                post_id=post_id,
+                user_id=sender_id,
+                username=username,
+                message=message_text,
+                created_time=datetime.utcnow(),
+                processed=True
+            )
+            db.session.add(existing_comment)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                print(f"Instagram comment {comment_id} processed in parallel thread. Skipping.")
+                return
+        else:
+            existing_comment.processed = True
+            db.session.commit()
+
+        # 3. Check anti-spam
+        if not check_anti_spam(sender_id, post_id, admin_id=user_id):
+            existing_comment.processed = True
+            db.session.commit()
+            log_activity(
+                event_type="SYSTEM",
+                status="FAILED",
+                message=f"Ignored Instagram commenter {username} ({sender_id}) due to Anti-Spam limits.",
+                post_id=post_id,
+                comment_id=comment_id,
+                user_id=sender_id,
+                admin_id=user_id
+            )
+            trigger_dashboard_update(admin_id=user_id)
             return
 
         token = Setting.get("instagram_page_access_token", user_id=user_id)
-        reply_text = post.default_reply or "شكراً لتعليقك. تم الرد على الخاص."
         
-        # Send public comment reply
-        success, msg = send_instagram_comment_reply(token, comment_id, reply_text)
+        # 4. Formulate templates (use post template parsed variables)
+        reply_template = post.default_reply or "شكراً لتعليقك. تم الرد على الخاص."
+        private_template = post.private_message or "مرحباً {name}، شكراً لاهتمامك. لقد أرسلنا لك التفاصيل."
         
-        log_activity(
-            event_type="REPLY",
-            status="SUCCESS" if success else "FAILED",
-            user_id=sender_id,
-            comment_id=comment_id,
-            post_id=post_id,
-            message=f"Instagram comment reply: {reply_text}",
-            admin_id=user_id
+        parsed_reply = FacebookApiService.parse_template(
+            reply_template, username, message_text, post_id, datetime.utcnow()
         )
+        parsed_private = FacebookApiService.parse_template(
+            private_template, username, message_text, post_id, datetime.utcnow()
+        )
+
+        # 5. Send public reply
+        reply_success, reply_msg = send_instagram_comment_reply(token, comment_id, parsed_reply)
+        existing_comment.reply_sent = reply_success
+        existing_comment.processed_at = datetime.utcnow()
+        if reply_success:
+            log_activity(
+                event_type="REPLY",
+                status="SUCCESS",
+                message=f"Instagram comment public reply sent successfully to {username}.",
+                post_id=post_id,
+                comment_id=comment_id,
+                user_id=sender_id,
+                admin_id=user_id
+            )
+        else:
+            existing_comment.reply_error = reply_msg
+            log_activity(
+                event_type="REPLY",
+                status="FAILED",
+                message=f"Instagram public reply failed: {reply_msg}",
+                post_id=post_id,
+                comment_id=comment_id,
+                user_id=sender_id,
+                admin_id=user_id
+            )
+        db.session.commit()
+
+        # Record this user as processed
+        record_processed_user(sender_id, post_id, admin_id=user_id)
+
+        # 6. Send private reply
+        message_record = Message(
+            post_id=post_id,
+            comment_id=comment_id,
+            user_id=sender_id,
+            message_content=parsed_private,
+            status='PENDING'
+        )
+        db.session.add(message_record)
+        db.session.commit()
+
+        try:
+            msg_success, msg_err = send_instagram_private_reply(token, comment_id, parsed_private)
+            if msg_success:
+                message_record.status = 'SUCCESS'
+                
+                # Save to InstagramChatHistory
+                try:
+                    bot_msg = InstagramChatHistory(
+                        sender_id=sender_id,
+                        message_content=parsed_private,
+                        is_from_customer=False,
+                        admin_id=user_id
+                    )
+                    db.session.add(bot_msg)
+                    db.session.commit()
+                except Exception as history_ex:
+                    db.session.rollback()
+                    print(f"Error saving IG private reply to chat history: {history_ex}")
+
+                log_activity(
+                    event_type="MESSAGE",
+                    status="SUCCESS",
+                    message=f"Instagram private reply sent successfully to {username}.",
+                    post_id=post_id,
+                    comment_id=comment_id,
+                    user_id=sender_id,
+                    admin_id=user_id
+                )
+            else:
+                message_record.status = 'FAILED'
+                message_record.error_message = msg_err
+                log_activity(
+                    event_type="MESSAGE",
+                    status="FAILED",
+                    message=f"Instagram private reply failed: {msg_err}",
+                    post_id=post_id,
+                    comment_id=comment_id,
+                    user_id=sender_id,
+                    admin_id=user_id
+                )
+            db.session.commit()
+        except Exception as msg_ex:
+            db.session.rollback()
+            message_record.status = 'FAILED'
+            message_record.error_message = str(msg_ex)
+            db.session.commit()
+            log_activity(
+                event_type="MESSAGE",
+                status="FAILED",
+                message=f"Instagram private reply failed with exception: {str(msg_ex)}",
+                post_id=post_id,
+                comment_id=comment_id,
+                user_id=sender_id,
+                admin_id=user_id
+            )
+
+        trigger_dashboard_update(admin_id=user_id)
